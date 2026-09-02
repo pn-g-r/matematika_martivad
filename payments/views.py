@@ -6,7 +6,7 @@ from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.contrib import messages
 from django.urls import reverse
 from django.utils import timezone
@@ -219,28 +219,40 @@ def flitt_callback_view(request):
         order = PaymentOrder.objects.select_for_update().filter(order_id=order_id).first()
 
     # Recurring renewal callback support (Flitt calendar charge for subsequent months)
+    # Protected against concurrent duplicate webhooks via parent row locking and IntegrityError safety
     if not order and parent_order_id:
-        parent_order = PaymentOrder.objects.filter(order_id=parent_order_id).first()
+        parent_order = (
+            PaymentOrder.objects.select_for_update()
+            .filter(order_id=parent_order_id)
+            .first()
+        )
         if parent_order:
             try:
                 amount_tetri = int(data.get('amount') or parent_order.amount_tetri)
             except (ValueError, TypeError):
                 amount_tetri = parent_order.amount_tetri
 
-            order, _ = PaymentOrder.objects.get_or_create(
-                order_id=order_id,
-                defaults={
-                    'user': parent_order.user,
-                    'course': parent_order.course,
-                    'plan_type': parent_order.plan_type,
-                    'amount_gel': Decimal(str(amount_tetri / 100)),
-                    'amount_tetri': amount_tetri,
-                    'currency': data.get('currency') or parent_order.currency,
-                    'order_desc': f"ავტომატური განახლება - {parent_order.order_desc}",
-                    'is_subscription': True,
-                    'status': OrderStatus.PROCESSING,
-                }
+            order = (
+                PaymentOrder.objects.select_for_update()
+                .filter(order_id=order_id)
+                .first()
             )
+            if not order:
+                try:
+                    order = PaymentOrder.objects.create(
+                        order_id=order_id,
+                        user=parent_order.user,
+                        course=parent_order.course,
+                        plan_type=parent_order.plan_type,
+                        amount_gel=Decimal(str(amount_tetri / 100)),
+                        amount_tetri=amount_tetri,
+                        currency=data.get('currency') or parent_order.currency,
+                        order_desc=f"ავტომატური განახლება - {parent_order.order_desc}",
+                        is_subscription=True,
+                        status=OrderStatus.PROCESSING,
+                    )
+                except IntegrityError:
+                    order = PaymentOrder.objects.select_for_update().get(order_id=order_id)
 
     if not order:
         logger.error("PaymentOrder %s (parent: %s) not found for Flitt callback.", order_id, parent_order_id)
@@ -278,6 +290,12 @@ def flitt_callback_view(request):
     order.response_code = str(data.get('response_code', '') or order.response_code or '')
     order.response_description = str(data.get('response_description', '') or order.response_description or '')
     order.raw_response = data
+
+    # 4. STATE REGRESSION GUARD:
+    # If order is already APPROVED, ignore any delayed out-of-order 'processing' webhooks
+    if order.status == OrderStatus.APPROVED and order_status == 'processing':
+        logger.info("Ignoring delayed 'processing' status for already APPROVED order %s", order.order_id)
+        return HttpResponse("OK", status=200)
 
     if order_status == 'approved':
         # IDEMPOTENCY SAFEGUARD:
@@ -342,14 +360,12 @@ def payment_response_view(request):
 
 
 @login_required
+@require_POST
 def cancel_subscription_view(request):
     """
     Allows an authenticated student to cancel their auto-renewing subscription via Flitt API.
     Stops future billing while preserving access until expires_at.
     """
-    if request.method != 'POST':
-        return redirect('payments:pricing')
-
     now = timezone.now()
     course_id = request.POST.get('course_id')
     active_access = None

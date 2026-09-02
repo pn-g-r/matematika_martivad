@@ -723,6 +723,69 @@ class PaymentsWorkflowTests(TestCase):
         # Ensure no orders were created
         self.assertFalse(PaymentOrder.objects.filter(order_id__startswith='MM_C999999').exists())
 
+    def test_cancel_subscription_rejects_get_request(self):
+        self.client.force_login(self.user)
+        res = self.client.get(reverse('payments:cancel_subscription'))
+        self.assertEqual(res.status_code, 405)
+
+    def test_out_of_order_delayed_processing_callback_does_not_regress_approved_order(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_REGRESS_001',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            status=OrderStatus.APPROVED,
+        )
+        params = {
+            'order_id': order.order_id,
+            'merchant_id': 1549901,
+            'amount': '5000',
+            'currency': 'GEL',
+            'order_status': 'processing',
+            'response_status': 'success',
+        }
+        params['signature'] = generate_flitt_signature(params, secret_key='test')
+        res = self.client.post(reverse('payments:flitt_callback'), data=params, content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+        order.refresh_from_db()
+        # Must stay APPROVED
+        self.assertEqual(order.status, OrderStatus.APPROVED)
+
+    def test_recurring_renewal_callback_creates_child_and_renews_access(self):
+        parent_order = PaymentOrder.objects.create(
+            order_id='MM_PARENT_REC_001',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.APPROVED,
+        )
+        params = {
+            'order_id': 'FLITT_CHILD_001',
+            'parent_order_id': parent_order.order_id,
+            'merchant_id': 1549901,
+            'amount': '5000',
+            'currency': 'GEL',
+            'order_status': 'approved',
+            'response_status': 'success',
+            'rectoken': 'rec_child_token',
+        }
+        params['signature'] = generate_flitt_signature(params, secret_key='test')
+        res = self.client.post(reverse('payments:flitt_callback'), data=params, content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+
+        child_order = PaymentOrder.objects.filter(order_id='FLITT_CHILD_001').first()
+        self.assertIsNotNone(child_order)
+        self.assertEqual(child_order.status, OrderStatus.APPROVED)
+        self.assertEqual(child_order.course, self.course)
+        self.assertTrue(UserCourseAccess.objects.filter(user=self.user, course=self.course, is_active=True).exists())
+
 
 
 
