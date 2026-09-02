@@ -1,0 +1,491 @@
+{
+  "generated_by": "scripts/build_repository_index.py",
+  "source_github": "/home/mkozenko/google-drive/projects/codex/flitt/flit-testing-skill/source_github",
+  "repository_count": 16,
+  "repositories": [
+    {
+      "name": "WHMCS",
+      "url": "https://github.com/flittpayments/WHMCS.git",
+      "default_branch": "master",
+      "primary_language": "PHP",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "not detected",
+      "sdk_or_package_type": "not detected",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "README.md"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "android-sdk",
+      "url": "https://github.com/flittpayments/android-sdk.git",
+      "default_branch": "main",
+      "primary_language": "Java",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "readme.md"
+      ],
+      "license": "not detected",
+      "sdk_or_package_type": "Android/Gradle project",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [
+        "gradle"
+      ],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "app/build.gradle",
+        "app/src/main/java/com/flitt/android/demo/BankPaymentActivity.java",
+        "build.gradle",
+        "library/build.gradle",
+        "readme.md",
+        "settings.gradle"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "c-sharp-sdk",
+      "url": "https://github.com/flittpayments/c-sharp-sdk.git",
+      "default_branch": "main",
+      "primary_language": "C#",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "LICENSE",
+      "sdk_or_package_type": ".NET solution",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "FlittSDK/Models/Checkout.cs",
+        "FlittSDK/Utils/Signature.cs",
+        "FlittSDKSamples/checkout.aspx",
+        "FlittSDKSamples/checkout.aspx.cs",
+        "FlittSDKSamples/checkout.aspx.designer.cs",
+        "FlittSDKSamples/checkout_settlement.aspx",
+        "FlittSDKSamples/checkout_settlement.aspx.cs",
+        "FlittSDKSamples/checkout_settlement.aspx.designer.cs",
+        "FlittSDKSamples/checkout_subscription.aspx",
+        "FlittSDKSamples/checkout_subscription.aspx.cs",
+        "FlittSDKSamples/checkout_subscription.aspx.designer.cs",
+        "FlittSDKTest/Checkout.cs",
+        "README.md"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "checkout-vue",
+      "url": "https://github.com/flittpayments/checkout-vue.git",
+      "default_branch": "latest",
+      "primary_language": "JavaScript",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        ".changeset/README.md",
+        "packages/checkout/README.md"
+      ],
+      "license": "not detected",
+      "sdk_or_package_type": "npm package / JavaScript SDK",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [
+        "npm"
+      ],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        ".changeset/README.md",
+        "package.json",
+        "packages/checkout-react/package.json",
+        "packages/checkout/README.md",
+        "packages/checkout/package.json",
+        "packages/checkout/src/views/checkout.vue",
+        "packages/checkout/src/views/click2pay/new-user-success-page-checkout.vue"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "cs-cart",
+      "url": "https://github.com/flittpayments/cs-cart.git",
+      "default_branch": "main",
+      "primary_language": "PHP",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "not detected",
+      "sdk_or_package_type": "not detected",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "README.md",
+        "design/backend/mail/templates/addons/flitt/send_payment_link.tpl",
+        "design/backend/mail/templates/addons/flitt/send_payment_link_subj.tpl",
+        "design/backend/templates/addons/flitt/hooks/orders/payment_info.post.tpl"
+      ],
+      "payment_integration_relevance": "medium",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "flittpayments.github.io",
+      "url": "https://github.com/flittpayments/flittpayments.github.io.git",
+      "default_branch": "main",
+      "primary_language": "JavaScript",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "readme.md"
+      ],
+      "license": "not detected",
+      "sdk_or_package_type": "not detected",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "readme.md"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "flutter",
+      "url": "https://github.com/flittpayments/flutter.git",
+      "default_branch": "main",
+      "primary_language": "Dart",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md",
+        "example/README.md",
+        "example/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md"
+      ],
+      "license": "LICENSE",
+      "sdk_or_package_type": "Flutter/Dart package",
+      "examples_directories": [
+        "example"
+      ],
+      "tests_directories": [
+        "example/test",
+        "test"
+      ],
+      "package_managers_detected": [
+        "pub"
+      ],
+      "frameworks_detected": [
+        "Flutter"
+      ],
+      "important_integration_files": [
+        "README.md",
+        "android/build.gradle",
+        "android/settings.gradle",
+        "example/README.md",
+        "example/android/app/build.gradle",
+        "example/android/build.gradle",
+        "example/android/settings.gradle",
+        "example/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md",
+        "example/pubspec.yaml",
+        "ios/flitt_mobile.podspec",
+        "pubspec.yaml"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "icons",
+      "url": "https://github.com/flittpayments/icons.git",
+      "default_branch": "main",
+      "primary_language": "JavaScript",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "LICENSE",
+      "sdk_or_package_type": "npm package / JavaScript SDK",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [
+        "npm"
+      ],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "README.md",
+        "package.json"
+      ],
+      "payment_integration_relevance": "medium",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "ios-sdk",
+      "url": "https://github.com/flittpayments/ios-sdk.git",
+      "default_branch": "main",
+      "primary_language": "Objective-C",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "LICENSE",
+      "sdk_or_package_type": "CocoaPods package; Swift Package",
+      "examples_directories": [
+        "Example"
+      ],
+      "tests_directories": [
+        "Example/Tests"
+      ],
+      "package_managers_detected": [
+        "cocoapods",
+        "swift-package-manager"
+      ],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "Flitt.podspec",
+        "Package.swift",
+        "README.md"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "js-sdk",
+      "url": "https://github.com/flittpayments/js-sdk.git",
+      "default_branch": "main",
+      "primary_language": "JavaScript",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "LICENSE",
+      "sdk_or_package_type": "npm package / JavaScript SDK",
+      "examples_directories": [],
+      "tests_directories": [
+        "test"
+      ],
+      "package_managers_detected": [
+        "npm"
+      ],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "README.md",
+        "package.json"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "node-js-sdk",
+      "url": "https://github.com/flittpayments/node-js-sdk.git",
+      "default_branch": "main",
+      "primary_language": "JavaScript",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "LICENSE",
+      "sdk_or_package_type": "npm package / JavaScript SDK",
+      "examples_directories": [
+        "examples"
+      ],
+      "tests_directories": [
+        "test"
+      ],
+      "package_managers_detected": [
+        "npm"
+      ],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "README.md",
+        "package.json"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "php-sdk",
+      "url": "https://github.com/flittpayments/php-sdk.git",
+      "default_branch": "main",
+      "primary_language": "PHP",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "not detected",
+      "sdk_or_package_type": "Composer package / PHP SDK",
+      "examples_directories": [
+        "examples"
+      ],
+      "tests_directories": [
+        "tests"
+      ],
+      "package_managers_detected": [
+        "composer"
+      ],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "README.md",
+        "composer.json",
+        "lib/Checkout.php",
+        "lib/Payment.php",
+        "tests/CheckoutTest.php",
+        "tests/PaymentTest.php"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "python",
+      "url": "https://github.com/flittpayments/python.git",
+      "default_branch": "main",
+      "primary_language": "Python",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "README.md"
+      ],
+      "license": "LICENSE",
+      "sdk_or_package_type": "Python package",
+      "examples_directories": [],
+      "tests_directories": [
+        "tests"
+      ],
+      "package_managers_detected": [
+        "pip"
+      ],
+      "frameworks_detected": [],
+      "important_integration_files": [
+        "README.md",
+        "flittpayments/checkout.py",
+        "flittpayments/payment.py",
+        "setup.py",
+        "tests/checkout_tests.py",
+        "tests/payment_tests.py"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "react",
+      "url": "https://github.com/flittpayments/react.git",
+      "default_branch": "unknown",
+      "primary_language": "unknown",
+      "topics": [],
+      "readme_presence": false,
+      "readme_paths": [],
+      "license": "not detected",
+      "sdk_or_package_type": "not detected",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [],
+      "frameworks_detected": [],
+      "important_integration_files": [],
+      "payment_integration_relevance": "empty repository; no integration evidence in clone",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "react-native",
+      "url": "https://github.com/flittpayments/react-native.git",
+      "default_branch": "main",
+      "primary_language": "TypeScript",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "readme.md"
+      ],
+      "license": "not detected",
+      "sdk_or_package_type": "npm package / JavaScript SDK; CocoaPods package",
+      "examples_directories": [
+        "Example",
+        "Example/android/app/src/main/java/com/cloudipsp/example"
+      ],
+      "tests_directories": [],
+      "package_managers_detected": [
+        "cocoapods",
+        "npm"
+      ],
+      "frameworks_detected": [
+        "React Native"
+      ],
+      "important_integration_files": [
+        "Example/BankPayment.tsx",
+        "Example/android/app/build.gradle",
+        "Example/android/build.gradle",
+        "Example/android/settings.gradle",
+        "Example/package.json",
+        "RNFlitt.podspec",
+        "android/build.gradle",
+        "package.json",
+        "readme.md"
+      ],
+      "payment_integration_relevance": "medium",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    },
+    {
+      "name": "wordpress",
+      "url": "https://github.com/flittpayments/wordpress.git",
+      "default_branch": "main",
+      "primary_language": "PHP",
+      "topics": [],
+      "readme_presence": true,
+      "readme_paths": [
+        "Paid_Membership_Pro/README.md",
+        "Paid_Membership_Pro/pmp-fondy-payment/README.txt",
+        "README.md",
+        "Restrict_Content_Pro/README.md",
+        "easy-digital-downloads-fondy/README.md",
+        "fondy-gravityforms-payment/README.md",
+        "woocommerce/README.md",
+        "woocommerce/flitt-woocommerce-payment-gateway/README.txt"
+      ],
+      "license": "not detected",
+      "sdk_or_package_type": "not detected",
+      "examples_directories": [],
+      "tests_directories": [],
+      "package_managers_detected": [],
+      "frameworks_detected": [
+        "WordPress/WooCommerce"
+      ],
+      "important_integration_files": [
+        "Paid_Membership_Pro/README.md",
+        "Paid_Membership_Pro/pmp-fondy-payment/languages/pmp-fondy-payment-ru_RU.mo",
+        "Paid_Membership_Pro/pmp-fondy-payment/languages/pmp-fondy-payment-ru_RU.po",
+        "Paid_Membership_Pro/pmp-fondy-payment/languages/pmp-fondy-payment.pot",
+        "Paid_Membership_Pro/pmp-fondy-payment/views/payment-option-fields.php",
+        "README.md",
+        "Restrict_Content_Pro/README.md",
+        "easy-digital-downloads-fondy/README.md",
+        "easy-digital-downloads-fondy/edd-fondy-payment.php",
+        "fondy-gravityforms-payment/README.md",
+        "woocommerce/README.md",
+        "woocommerce/flitt-woocommerce-payment-gateway/assets/js/checkout.js",
+        "woocommerce/flitt-woocommerce-payment-gateway/flitt-payment-gateway-for-woocommerce.php",
+        "woocommerce/flitt-woocommerce-payment-gateway/includes/abstract-flitt-payment-gateway.php",
+        "woocommerce/flitt-woocommerce-payment-gateway/languages/flitt-payment-gateway-for-woocommerce-ru_RU.po",
+        "woocommerce/flitt-woocommerce-payment-gateway/languages/flitt-payment-gateway-for-woocommerce.pot"
+      ],
+      "payment_integration_relevance": "high",
+      "indexed_at": "2026-05-28T14:55:48+03:00"
+    }
+  ]
+}

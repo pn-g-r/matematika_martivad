@@ -1,0 +1,267 @@
+site_name: Payment API reference
+site_url: https://docs.flitt.com
+site_description: Flitt payment API Reference.
+repo_url: https://github.com/flittpayments
+
+theme:
+  name: material
+  custom_dir: overrides
+  icon:
+    logo: material/flitt_dark
+  favicon: static/img/favicon.ico
+  #  font:
+  #    text: GrtskPeta
+  features:
+    - navigation.top
+    - content.tooltips
+    - content.tabs.link
+    - content.code.copy
+#    - navigation.tabs
+#    - navigation.tabs.sticky
+    - navigation.indexes
+    - navigation.sections
+  highlightjs: true
+  hljs_languages:
+    - yaml
+    - rust
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to dark mode
+
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: white
+      toggle:
+        icon: material/lightbulb
+        name: Switch to system preference
+
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to light mode
+
+extra_css:
+  - static/assets/extra.css
+extra:
+  analytics:
+    provider: custom
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/flittpayments/
+      name: Flitt on Github
+    - icon: fontawesome/brands/discourse
+      link: https://flitt.discourse.group/
+      name: Flitt Community for developers
+nav:
+  - Home: index.md
+  - Online payments:
+      - Get started: getting-started/get-started.md
+      - Redirect: getting-started/redirect.md
+      - Embedded: getting-started/embedded.md
+      - Direct: getting-started/direct.md
+      #- Mobile: getting-started/mobile.md
+      - Saving cards: getting-started/recurring.md
+        #  - Flitt managed: api/subcription.md
+        #  - merchant managed: api/recurring.md
+    #- Design presets: getting-started/presets.md
+    #- Brief description: index.md
+  #- No-code:
+  #  - Payment button: no-code/payment-button.md
+  #  - Payment links: no-code/payment-link.md
+  #  - Invoices: no-code/invoice.md
+  #  - Embedded Custom checkout: no-code/embedded-custom.md
+  #  - CRM&CMS plugins: no-code/cms-plugins.md
+  #  - Landing pages: no-code/landing.md
+  #  - Design customization: no-code/design-templates.md
+  - SDKs:
+      - Embedded checkout: api/embedded-custom.md
+      - SDK:
+          - About SDK: sdk-and-mobile/sdk/about-sdk.md
+          - Mobile:
+            - iOS (Objective-C): api/mobile/ios.md
+            - iOS (Swift): api/mobile/ios-swift.md
+            - React Native: api/mobile/reactnative.md
+            - Flutter: api/mobile/flutter.md
+            - Android (Java): api/mobile/android.md
+          - Backend:
+            - Python: sdk-and-mobile/sdk/python.md
+            - PHP: sdk-and-mobile/sdk/php.md
+            - Node.js: sdk-and-mobile/sdk/nodejs.md
+            - C#: sdk-and-mobile/sdk/csharp.md
+          - Frontend:
+            - JavaScript:
+                - Card form: sdk-and-mobile/sdk/js.md
+                - Apple Pay/Google Pay: sdk-and-mobile/sdk/wallets.md
+            - Vue.js: api/embedded-custom.md
+      - CRM&CMS plugins: no-code/cms-plugins.md
+  - API:
+      - Introduction: api/introduction.md
+      - Flitt payments integration skill: flitt-payments-integration-skill.md
+      - Testing: api/testing.md
+      #- Changelog: api/changelog.md
+      - Sending request:
+          - Payment flow: api/payment-flow.md
+          - Request structure: api/request.md
+      - Payment (redirect):
+          - Parameters: api/order-parameters.md
+          - Create order: api/create-order.md
+          - Get order status: api/order-status.md
+      # - List order transactions: api/list-order-transactions.md
+      - Payment (direct):
+          - Parameters: api/order-parameters-direct.md
+          - Create order: api/create-order-direct.md
+      - Payment with saved card:
+          - Parameters: api/order-parameters-recurring.md
+          - Create order: api/create-order-recurring.md
+      - Withdrawal (card/IBAN):
+          - Create card withdrawal: api/create-order-p2pcredit.md
+          - Create IBAN withdrawal: api/create-order-ibancredit.md
+      - Reversal:
+          - Parameters: api/reversal-parameters.md
+          - Create reversal: api/create-reversal.md
+          - Get reversal status: api/get-reversal-status.md
+      - Capture:
+          - Parameters: api/capture-parameters.md
+          - Create capture: api/create-capture.md
+          - Get capture status: api/get-capture-status.md
+      - Reports: api/reports.md            
+      - Apple Pay:
+          - getting started: api/applepay-getting-started.md
+          - on web: api/applepay-web.md
+          - mobile:
+              - iOS (Objective-C): api/mobile/apple-ios.md
+              - iOS (Swift): api/mobile/apple-ios-swift.md
+              - React Native: api/mobile/apple-reactnative.md
+              - Flutter: api/mobile/apple-flutter.md
+              - in web-view: api/mobile/apple-webview.md
+          - direct: api/applepay-direct.md
+      - Google Pay:
+          - getting started: api/googlepay-getting-started.md
+          - on web: api/googlepay-web.md
+          - mobile:
+              - Android (Java): api/mobile/googlepay-android.md
+              - React Native: api/mobile/googlepay-reactnative.md
+              - Flutter: api/mobile/googlepay-flutter.md
+              - in web-view: api/mobile/googlepay-webview.md
+          - direct: api/googlepay-direct.md
+      - Open Banking:
+          - Introduction: api/opb_intro.md
+          - Create order: api/opb.md
+      - Installments:
+          - Introduction: api/installments_intro.md
+          - Create order: api/installments.md
+      - Pay by Payme:
+          - Introduction: api/paybypayme_intro.md
+          - Create order: api/paybypayme.md
+      - Subscriptions:
+          - Introduction: api/subscriptions_intro.md
+          - Create subscription: api/subscriptions.md
+          - Cancel subscription: api/cancel-subscriptions.md
+      #- Slit payments: api/split.md
+      - Fiscalisation: api/fiscal_data.md
+      - Additional data: api/reservation_data.md
+      - Currencies: api/currencies.md
+      - Callbacks: api/callbacks.md
+      - Signature: api/building-signature.md
+      - Delayed order: api/delayed.md
+      - Response codes: api/response-codes.md
+      - Supported countries: supported-countries.md
+      - Supported payment systems: supported-payment-systems.md
+      - PCI DSS compliance: pcidss-compliance.md
+      - Bug bounty: bug-bounty.md
+#      - Documentation for LLMS: llms.md
+#      - Comunity for developers: https://flitt.discourse.group/
+      - Privacy Policy: privacy-policy.md
+
+plugins:
+  - search:
+      lang:
+        - en
+  - i18n:
+      docs_structure: suffix
+      fallback_to_default: true
+      languages:
+        - build: true
+          default: true
+          locale: en
+          name: English
+#        - build: true
+#          default: false
+#          locale: ka
+#          name: Georgian
+#          nav_translations:
+#            Home: მთავარი გვერდი
+#            Online payments: ონლაინ გადახდები
+#            Get started: დაიწყეთ
+#            CMS plugins: CMS დანამატები
+#            Subscription & Recurring: გამოწერა და განმეორებადი
+      reconfigure_material: true
+      reconfigure_search: true
+  - llmstxt:
+      full_output: llms-full.txt
+      sections:
+        Home page. Explore the methods to integrate Flitt:
+        - index.md # How to start & Testing. Redirect, embedded, direct
+        API Reference:
+        - api/*.md
+        Mobile SDKs:
+        - api/mobile/*.md
+        SDKs for frontend and backend:
+        - sdk-and-mobile/sdk/*.md
+        Getting started:
+        - getting-started/*.md
+        CMS plugins:
+        - no-code/*.md
+        Other pages:
+        - bug-bounty.md
+        - pcidss-compliance.md
+        - flitt-payments-integration-skill.md
+        - supported-countries.md
+        - supported-payment-systems.md
+        - llms.md
+
+
+
+markdown_extensions:
+  - pymdownx.critic
+  - pymdownx.caret
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - tables
+  - attr_list
+  - md_in_html
+  - admonition
+  - pymdownx.snippets
+  - pymdownx.details
+  - pymdownx.tabbed:
+      alternate_style: true
+  #  - pymdownx.superfences
+  - pymdownx.highlight:
+      extend_pygments_lang:
+        - name: php-inline
+          lang: php
+          options:
+            startinline: true
+      linenums_style: pymdownx-inline
+  - pymdownx.inlinehilite
+  - toc:
+      permalink: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+      options:
+        custom_icons:
+          - overrides/.icons
+  - pymdownx.tasklist:
+      custom_checkbox: true
