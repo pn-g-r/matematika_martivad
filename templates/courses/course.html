@@ -241,7 +241,7 @@
           </div>
           {% elif course_access and not course_access.auto_renew %}
           <div style="font-size: 11px; color: #64748b; text-align: center; margin-top: 8px;">
-            ავტომატური განახლება გაუქმებულია (ვადა: {{ course_access.expires_at|date:"Y-m-d" }})
+            გაკვეთილებზე წვდომა შეგეზღუდებათ: {{ course_access.expires_at|date:"Y-m-d" }}
           </div>
           {% endif %}
         {% else %}

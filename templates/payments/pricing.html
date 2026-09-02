@@ -235,7 +235,7 @@
             </span>
             {% else %}
             <span style="display: block; font-size: 13px; color: #fbbf24; margin-top: 4px;">
-              <i class="fa-solid fa-ban"></i> ავტომატური განახლება გაუქმებულია (ვადა ამოიწურება {{ course_access.expires_at|date:"Y-m-d" }}-ში).
+              <i class="fa-solid fa-ban"></i> გაკვეთილებზე წვდომა შეგეზღუდებათ: {{ course_access.expires_at|date:"Y-m-d" }}
             </span>
             {% endif %}
           </div>
