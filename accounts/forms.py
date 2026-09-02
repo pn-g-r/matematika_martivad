@@ -323,3 +323,89 @@ class CustomUserAdminChangeForm(UserChangeForm):
         return phone
 
 
+class StaffUserAdminChangeForm(forms.ModelForm):
+    student_name = forms.CharField(
+        label="მოსწავლის სახელი და გვარი",
+        max_length=150,
+        required=True,
+    )
+    phone_number = forms.CharField(
+        label="მშობლის ტელეფონის ნომერი",
+        max_length=9,
+        min_length=9,
+        required=True,
+    )
+    parent_name = forms.CharField(
+        label="მშობლის სახელი და გვარი",
+        max_length=150,
+        required=True,
+    )
+    grade = forms.ChoiceField(
+        label="კლასი",
+        choices=CustomUser.CLASS_CHOICES,
+        required=True,
+    )
+    book_author = forms.CharField(
+        label="სახელმძღვანელოს ავტორი",
+        max_length=150,
+        required=True,
+    )
+    password = ReadOnlyPasswordHashField(
+        label="პაროლი",
+        help_text=(
+            "პაროლები დაშიფრულია. პაროლის შესაცვლელად გამოიყენეთ "
+            '<a href="../password/">პაროლის შეცვლის ფორმა</a>.'
+        ),
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            'student_name',
+            'grade',
+            'book_author',
+            'parent_name',
+            'phone_number',
+            'password',
+        )
+
+    def clean_student_name(self):
+        name = self.cleaned_data.get('student_name', '').strip()
+        if not name:
+            raise ValidationError("მოსწავლის სახელისა და გვარის შეყვანა სავალდებულოა.")
+        return name
+
+    def clean_parent_name(self):
+        name = self.cleaned_data.get('parent_name', '').strip()
+        if not name:
+            raise ValidationError("მშობლის სახელისა და გვარის შეყვანა სავალდებულოა.")
+        return name
+
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number', '').strip()
+        if not PHONE_REGEX.match(phone):
+            raise ValidationError(PHONE_ERROR_MSG)
+        qs = CustomUser.objects.filter(Q(phone_number=phone) | Q(username=phone))
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError("ამ ტელეფონის ნომრით მომხმარებელი უკვე რეგისტრირებულია.")
+        return phone
+
+    def clean_book_author(self):
+        author = self.cleaned_data.get('book_author', '').strip()
+        if not author:
+            raise ValidationError("სახელმძღვანელოს ავტორის შეყვანა სავალდებულოა.")
+        return author
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        phone = self.cleaned_data["phone_number"]
+        if not user.is_staff and not user.is_superuser:
+            user.username = phone
+        if commit:
+            user.save()
+        return user
+
+
+

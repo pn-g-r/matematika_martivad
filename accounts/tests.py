@@ -189,5 +189,69 @@ class AccountsAuthTests(TestCase):
         self.assertIn('student_name', change_form.fields)
         self.assertIn('phone_number', change_form.fields)
 
+    def test_staff_vs_superuser_admin_forms_and_fieldsets(self):
+        from accounts.admin import CustomUserAdmin
+        from django.contrib.admin.sites import AdminSite
+        from django.test import RequestFactory
+        from accounts.forms import StaffUserAdminChangeForm
+
+        site = AdminSite()
+        cua = CustomUserAdmin(User, site)
+        rf = RequestFactory()
+
+        # Staff request
+        req_staff = rf.get('/')
+        req_staff.user = User(username='staff_admin', is_staff=True, is_superuser=False)
+
+        # Superuser request
+        req_super = rf.get('/')
+        req_super.user = User(username='super_admin', is_staff=True, is_superuser=True)
+
+        # 1. Add form
+        staff_add_form_cls = cua.get_form(req_staff, obj=None)
+        super_add_form_cls = cua.get_form(req_super, obj=None)
+
+        staff_add_fields = set(staff_add_form_cls().fields.keys())
+        super_add_fields = set(super_add_form_cls().fields.keys())
+
+        expected_staff_fields = {
+            'student_name',
+            'grade',
+            'book_author',
+            'parent_name',
+            'phone_number',
+            'password1',
+            'password2',
+        }
+        self.assertEqual(staff_add_fields, expected_staff_fields)
+        self.assertNotIn('username', staff_add_fields)
+        self.assertNotIn('is_superuser', staff_add_fields)
+        self.assertNotIn('is_staff', staff_add_fields)
+        self.assertIn('username', super_add_fields)
+        self.assertIn('is_superuser', super_add_fields)
+
+        # 2. Change form
+        student_user = User.objects.create_user(
+            username='555333444',
+            phone_number='555333444',
+            password='TestPass123!@#',
+            student_name='მოსწავლე 1',
+            parent_name='მშობელი 1',
+            grade='VII',
+            book_author='ავტორი 1'
+        )
+        staff_change_form_cls = cua.get_form(req_staff, obj=student_user)
+        super_change_form_cls = cua.get_form(req_super, obj=student_user)
+
+        staff_change_fields = set(staff_change_form_cls(instance=student_user).fields.keys())
+        super_change_fields = set(super_change_form_cls(instance=student_user).fields.keys())
+
+        self.assertNotIn('is_superuser', staff_change_fields)
+        self.assertNotIn('is_staff', staff_change_fields)
+        self.assertNotIn('groups', staff_change_fields)
+        self.assertIn('is_superuser', super_change_fields)
+        self.assertIn('groups', super_change_fields)
+
+
 
 
