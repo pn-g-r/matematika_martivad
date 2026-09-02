@@ -48,7 +48,7 @@ class CustomUser(AbstractUser):
         max_length=150,
         blank=True,
         default="",
-        verbose_name="წიგნის ავტორი"
+        verbose_name="სახელმძღვანელოს ავტორი"
     )
 
     objects = UserManager()

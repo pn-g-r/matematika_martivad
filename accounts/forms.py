@@ -55,11 +55,11 @@ class CustomUserCreationForm(forms.ModelForm):
         required=True,
     )
     book_author = forms.CharField(
-        label="წიგნის ავტორი",
+        label="სახელმძღვანელოს ავტორი",
         max_length=150,
         required=True,
         widget=forms.TextInput(attrs={
-            'placeholder': 'წიგნის ავტორი',
+            'placeholder': 'სახელმძღვანელოს ავტორი',
             'class': 'form-input',
         })
     )
@@ -115,7 +115,7 @@ class CustomUserCreationForm(forms.ModelForm):
     def clean_book_author(self):
         author = self.cleaned_data.get('book_author', '').strip()
         if not author:
-            raise ValidationError("წიგნის ავტორის შეყვანა სავალდებულოა.")
+            raise ValidationError("სახელმძღვანელოს ავტორის შეყვანა სავალდებულოა.")
         return author
 
     def clean(self):

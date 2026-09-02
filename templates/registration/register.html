@@ -42,9 +42,58 @@
       }
       .auth-card p.subtitle {
         color: #cbd5e1;
-        margin-bottom: 25px;
+        margin-bottom: 20px;
         font-size: 14px;
       }
+
+      /* Step Progress Indicators */
+      .steps-indicator {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 25px;
+      }
+      .step-bubble {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #64748b;
+        transition: all 0.3s ease;
+      }
+      .step-bubble.active {
+        color: #38bdf8;
+      }
+      .step-bubble.completed {
+        color: #4ade80;
+      }
+      .step-num {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+      }
+      .step-bubble.active .step-num {
+        background: #38bdf8;
+        color: #0f172a;
+        box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+      }
+      .step-bubble.completed .step-num {
+        background: #22c55e;
+        color: white;
+      }
+      .step-line {
+        width: 32px;
+        height: 2px;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
       .auth-form {
         text-align: left;
       }
@@ -134,8 +183,22 @@
         padding: 0;
         margin: 4px 0 0;
       }
-      .auth-form button[type="submit"] {
-        width: 100%;
+      .step-error-msg {
+        color: #ef4444;
+        font-size: 13px;
+        margin-top: 4px;
+        display: none;
+      }
+
+      /* Step button styles */
+      .step-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 20px;
+      }
+      .btn-step-next,
+      .btn-step-submit {
+        flex: 1;
         padding: 14px;
         background: #38bdf8;
         color: #0f172a;
@@ -144,12 +207,28 @@
         font-size: 16px;
         font-weight: bold;
         cursor: pointer;
-        margin-top: 15px;
         transition: background 0.3s;
+        text-align: center;
       }
-      .auth-form button[type="submit"]:hover {
+      .btn-step-next:hover,
+      .btn-step-submit:hover {
         background: #0ea5e9;
       }
+      .btn-step-prev {
+        padding: 14px 20px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #e2e8f0;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.3s;
+      }
+      .btn-step-prev:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
       .auth-links {
         margin-top: 25px;
         font-size: 14px;
@@ -161,6 +240,14 @@
       .auth-links a:hover {
         text-decoration: underline;
       }
+
+      .form-step {
+        display: none;
+      }
+      .form-step.active {
+        display: block;
+      }
+
       @media (max-width: 480px) {
         .grade-radio-group {
           gap: 4px;
@@ -191,6 +278,19 @@
         <h2>რეგისტრაცია</h2>
         <p class="subtitle">შექმენით ახალი ანგარიში</p>
 
+        <!-- Step Indicator -->
+        <div class="steps-indicator">
+          <div class="step-bubble active" id="indicator-step1">
+            <span class="step-num">1</span>
+            <span>მოსწავლე</span>
+          </div>
+          <div class="step-line"></div>
+          <div class="step-bubble" id="indicator-step2">
+            <span class="step-num">2</span>
+            <span>მშობელი და პაროლი</span>
+          </div>
+        </div>
+
         {% if messages %}
         <div style="margin-bottom: 20px;">
           {% for message in messages %}
@@ -201,7 +301,7 @@
         </div>
         {% endif %}
 
-        <form method="post" class="auth-form" novalidate>
+        <form method="post" class="auth-form" id="registration-form" novalidate>
           {% csrf_token %}
           {% if register_form.non_field_errors %}
           <div style="color: #ef4444; margin-bottom: 15px; font-size: 14px; background: rgba(239, 68, 68, 0.15); padding: 10px; border-radius: 8px;">
@@ -209,63 +309,83 @@
           </div>
           {% endif %}
 
-          <!-- 1. მოსწავლის სახელი და გვარი -->
-          <div class="form-group">
-            <label class="form-label" for="{{ register_form.student_name.id_for_label }}">{{ register_form.student_name.label }}</label>
-            {{ register_form.student_name }}
-            {{ register_form.student_name.errors }}
-          </div>
-
-          <!-- 2. მშობლის ტელეფონის ნომერი -->
-          <div class="form-group">
-            <label class="form-label" for="{{ register_form.phone_number.id_for_label }}">{{ register_form.phone_number.label }}</label>
-            {{ register_form.phone_number }}
-            {{ register_form.phone_number.errors }}
-          </div>
-
-          <!-- 3. მშობლის სახელი და გვარი -->
-          <div class="form-group">
-            <label class="form-label" for="{{ register_form.parent_name.id_for_label }}">{{ register_form.parent_name.label }}</label>
-            {{ register_form.parent_name }}
-            {{ register_form.parent_name.errors }}
-          </div>
-
-          <!-- 4. კლასი (radio buttons on horizontal line) -->
-          <div class="form-group">
-            <label class="form-label">{{ register_form.grade.label }}</label>
-            <div class="grade-radio-group">
-              {% for radio in register_form.grade %}
-              <label class="grade-radio-label">
-                {{ radio.tag }}
-                <span>{{ radio.choice_label }}</span>
-              </label>
-              {% endfor %}
+          <!-- STEP 1: მოსწავლის სახელი და გვარი, კლასი, სახელმძღვანელოს ავტორი -->
+          <div class="form-step active" id="step-1">
+            <!-- 1. მოსწავლის სახელი და გვარი -->
+            <div class="form-group">
+              <label class="form-label" for="{{ register_form.student_name.id_for_label }}">{{ register_form.student_name.label }}</label>
+              {{ register_form.student_name }}
+              <div class="step-error-msg" id="error-student-name">გთხოვთ შეიყვანოთ მოსწავლის სახელი და გვარი.</div>
+              {{ register_form.student_name.errors }}
             </div>
-            {{ register_form.grade.errors }}
+
+            <!-- 2. კლასი (horizontal radio group) -->
+            <div class="form-group">
+              <label class="form-label">{{ register_form.grade.label }}</label>
+              <div class="grade-radio-group">
+                {% for radio in register_form.grade %}
+                <label class="grade-radio-label">
+                  {{ radio.tag }}
+                  <span>{{ radio.choice_label }}</span>
+                </label>
+                {% endfor %}
+              </div>
+              <div class="step-error-msg" id="error-grade">გთხოვთ აირჩიოთ კლასი.</div>
+              {{ register_form.grade.errors }}
+            </div>
+
+            <!-- 3. სახელმძღვანელოს ავტორი -->
+            <div class="form-group">
+              <label class="form-label" for="{{ register_form.book_author.id_for_label }}">{{ register_form.book_author.label }}</label>
+              {{ register_form.book_author }}
+              <div class="step-error-msg" id="error-book-author">გთხოვთ შეიყვანოთ სახელმძღვანელოს ავტორი.</div>
+              {{ register_form.book_author.errors }}
+            </div>
+
+            <div class="step-actions">
+              <button type="button" class="btn-step-next" id="btn-to-step-2">შემდეგი <i class="fa-solid fa-arrow-right" style="margin-left: 6px;"></i></button>
+            </div>
           </div>
 
-          <!-- 5. წიგნის ავტორი -->
-          <div class="form-group">
-            <label class="form-label" for="{{ register_form.book_author.id_for_label }}">{{ register_form.book_author.label }}</label>
-            {{ register_form.book_author }}
-            {{ register_form.book_author.errors }}
-          </div>
+          <!-- STEP 2: მშობლის სახელი და გვარი, მშობლის ტელეფონის ნომერი, პაროლი, პაროლის დადასტურება -->
+          <div class="form-step" id="step-2">
+            <!-- 4. მშობლის სახელი და გვარი -->
+            <div class="form-group">
+              <label class="form-label" for="{{ register_form.parent_name.id_for_label }}">{{ register_form.parent_name.label }}</label>
+              {{ register_form.parent_name }}
+              <div class="step-error-msg" id="error-parent-name">გთხოვთ შეიყვანოთ მშობლის სახელი და გვარი.</div>
+              {{ register_form.parent_name.errors }}
+            </div>
 
-          <!-- 6. პაროლი -->
-          <div class="form-group">
-            <label class="form-label" for="{{ register_form.password1.id_for_label }}">{{ register_form.password1.label }}</label>
-            {{ register_form.password1 }}
-            {{ register_form.password1.errors }}
-          </div>
+            <!-- 5. მშობლის ტელეფონის ნომერი -->
+            <div class="form-group">
+              <label class="form-label" for="{{ register_form.phone_number.id_for_label }}">{{ register_form.phone_number.label }}</label>
+              {{ register_form.phone_number }}
+              <div class="step-error-msg" id="error-phone-number">ტელეფონის ნომერი უნდა შედგებოდეს ზუსტად 9 ციფრისგან (მაგ: 555111222).</div>
+              {{ register_form.phone_number.errors }}
+            </div>
 
-          <!-- 7. პაროლის დადასტურება -->
-          <div class="form-group">
-            <label class="form-label" for="{{ register_form.password2.id_for_label }}">{{ register_form.password2.label }}</label>
-            {{ register_form.password2 }}
-            {{ register_form.password2.errors }}
-          </div>
+            <!-- 6. პაროლი -->
+            <div class="form-group">
+              <label class="form-label" for="{{ register_form.password1.id_for_label }}">{{ register_form.password1.label }}</label>
+              {{ register_form.password1 }}
+              <div class="step-error-msg" id="error-password1">გთხოვთ შეიყვანოთ პაროლი.</div>
+              {{ register_form.password1.errors }}
+            </div>
 
-          <button type="submit">რეგისტრაცია</button>
+            <!-- 7. პაროლის დადასტურება -->
+            <div class="form-group">
+              <label class="form-label" for="{{ register_form.password2.id_for_label }}">{{ register_form.password2.label }}</label>
+              {{ register_form.password2 }}
+              <div class="step-error-msg" id="error-password2">გთხოვთ დაადასტუროთ პაროლი.</div>
+              {{ register_form.password2.errors }}
+            </div>
+
+            <div class="step-actions">
+              <button type="button" class="btn-step-prev" id="btn-back-to-step-1"><i class="fa-solid fa-arrow-left" style="margin-right: 6px;"></i> უკან</button>
+              <button type="submit" class="btn-step-submit">რეგისტრაცია</button>
+            </div>
+          </div>
         </form>
 
         <div class="auth-links">
@@ -299,7 +419,83 @@
           this.value = paste.replace(/\D/g, '').slice(0, 9);
         });
       });
+
+      // Multi-step navigation logic
+      const step1 = document.getElementById('step-1');
+      const step2 = document.getElementById('step-2');
+      const btnToStep2 = document.getElementById('btn-to-step-2');
+      const btnBackToStep1 = document.getElementById('btn-back-to-step-1');
+      const indicator1 = document.getElementById('indicator-step1');
+      const indicator2 = document.getElementById('indicator-step2');
+
+      function validateStep1() {
+        let isValid = true;
+
+        const studentInput = document.getElementById('{{ register_form.student_name.id_for_label }}');
+        const errStudent = document.getElementById('error-student-name');
+        if (!studentInput.value.trim()) {
+          errStudent.style.display = 'block';
+          studentInput.style.borderColor = '#ef4444';
+          isValid = false;
+        } else {
+          errStudent.style.display = 'none';
+          studentInput.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        }
+
+        const gradeChecked = document.querySelector('input[name="grade"]:checked');
+        const errGrade = document.getElementById('error-grade');
+        if (!gradeChecked) {
+          errGrade.style.display = 'block';
+          isValid = false;
+        } else {
+          errGrade.style.display = 'none';
+        }
+
+        const authorInput = document.getElementById('{{ register_form.book_author.id_for_label }}');
+        const errAuthor = document.getElementById('error-book-author');
+        if (!authorInput.value.trim()) {
+          errAuthor.style.display = 'block';
+          authorInput.style.borderColor = '#ef4444';
+          isValid = false;
+        } else {
+          errAuthor.style.display = 'none';
+          authorInput.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        }
+
+        return isValid;
+      }
+
+      function goToStep(step) {
+        if (step === 2) {
+          if (!validateStep1()) return;
+          step1.classList.remove('active');
+          step2.classList.add('active');
+          indicator1.classList.remove('active');
+          indicator1.classList.add('completed');
+          indicator2.classList.add('active');
+        } else {
+          step2.classList.remove('active');
+          step1.classList.add('active');
+          indicator2.classList.remove('active');
+          indicator1.classList.remove('completed');
+          indicator1.classList.add('active');
+        }
+      }
+
+      btnToStep2.addEventListener('click', function() {
+        goToStep(2);
+      });
+
+      btnBackToStep1.addEventListener('click', function() {
+        goToStep(1);
+      });
+
+      // If backend returned errors on Step 2 fields, show Step 2 automatically
+      {% if register_form.parent_name.errors or register_form.phone_number.errors or register_form.password1.errors or register_form.password2.errors %}
+      goToStep(2);
+      {% endif %}
     </script>
   </body>
 </html>
+
 
