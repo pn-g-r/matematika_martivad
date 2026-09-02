@@ -109,8 +109,8 @@ class PaymentsWorkflowTests(TestCase):
         # Test embedded pay page
         pay_res = self.client.get(reverse('payments:checkout_pay', kwargs={'order_id': order.order_id}))
         self.assertEqual(pay_res.status_code, 200)
-        self.assertContains(pay_res, 'mock_token_123')
-        self.assertContains(pay_res, 'layout: \'plain\'')
+        self.assertContains(pay_res, 'flitt-checkout-frame')
+        self.assertContains(pay_res, 'https://pay.flitt.com/checkout/mock_token_123')
 
     @patch.object(FlittPaymentClient, 'create_checkout_session')
     def test_checkout_init_yearly_onetime(self, mock_flitt):
