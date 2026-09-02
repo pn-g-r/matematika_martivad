@@ -272,6 +272,33 @@ class AccountsAuthTests(TestCase):
         # Check user is logged in
         self.assertEqual(int(post_response.context['user'].id), user.id)
 
+    def test_admin_change_form_with_none_or_empty_phone(self):
+        from accounts.forms import CustomUserAdminChangeForm
+        from django.contrib.auth.models import Permission
+
+        staff_user = User.objects.create_user(
+            username='admin_without_phone',
+            password='AdminPass123!@#',
+            is_staff=True,
+            phone_number=None,
+        )
+        perm = Permission.objects.first()
+        data = {
+            'username': staff_user.username,
+            'phone_number': '',
+            'date_joined': staff_user.date_joined,
+            'is_staff': True,
+            'is_active': True,
+            'user_permissions': [perm.id] if perm else [],
+        }
+        form = CustomUserAdminChangeForm(data=data, instance=staff_user)
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save()
+        self.assertIsNone(saved.phone_number)
+        if perm:
+            self.assertIn(perm, saved.user_permissions.all())
+
+
 
 
 

@@ -259,7 +259,8 @@ class CustomUserAdminCreationForm(forms.ModelForm):
         )
 
     def clean_username(self):
-        username = self.cleaned_data.get('username', '').strip()
+        username = self.cleaned_data.get('username')
+        username = username.strip() if username else ''
         if not username:
             raise ValidationError("მომხმარებლის სახელი სავალდებულოა.")
         if CustomUser.objects.filter(username__iexact=username).exists():
@@ -267,7 +268,8 @@ class CustomUserAdminCreationForm(forms.ModelForm):
         return username
 
     def clean_phone_number(self):
-        phone = self.cleaned_data.get('phone_number', '').strip()
+        phone = self.cleaned_data.get('phone_number')
+        phone = phone.strip() if phone else ''
         if not phone:
             return None
         if not PHONE_REGEX.match(phone):
@@ -310,7 +312,8 @@ class CustomUserAdminChangeForm(UserChangeForm):
         fields = '__all__'
 
     def clean_phone_number(self):
-        phone = self.cleaned_data.get('phone_number', '').strip()
+        phone = self.cleaned_data.get('phone_number')
+        phone = phone.strip() if phone else ''
         if not phone:
             return None
         if not PHONE_REGEX.match(phone):
@@ -370,19 +373,24 @@ class StaffUserAdminChangeForm(forms.ModelForm):
         )
 
     def clean_student_name(self):
-        name = self.cleaned_data.get('student_name', '').strip()
+        name = self.cleaned_data.get('student_name')
+        name = name.strip() if name else ''
         if not name:
             raise ValidationError("მოსწავლის სახელისა და გვარის შეყვანა სავალდებულოა.")
         return name
 
     def clean_parent_name(self):
-        name = self.cleaned_data.get('parent_name', '').strip()
+        name = self.cleaned_data.get('parent_name')
+        name = name.strip() if name else ''
         if not name:
             raise ValidationError("მშობლის სახელისა და გვარის შეყვანა სავალდებულოა.")
         return name
 
     def clean_phone_number(self):
-        phone = self.cleaned_data.get('phone_number', '').strip()
+        phone = self.cleaned_data.get('phone_number')
+        phone = phone.strip() if phone else ''
+        if not phone:
+            raise ValidationError("ტელეფონის ნომრის შეყვანა სავალდებულოა.")
         if not PHONE_REGEX.match(phone):
             raise ValidationError(PHONE_ERROR_MSG)
         qs = CustomUser.objects.filter(Q(phone_number=phone) | Q(username=phone))
@@ -393,7 +401,8 @@ class StaffUserAdminChangeForm(forms.ModelForm):
         return phone
 
     def clean_book_author(self):
-        author = self.cleaned_data.get('book_author', '').strip()
+        author = self.cleaned_data.get('book_author')
+        author = author.strip() if author else ''
         if not author:
             raise ValidationError("სახელმძღვანელოს ავტორის შეყვანა სავალდებულოა.")
         return author
@@ -444,7 +453,8 @@ class StaffRegistrationForm(forms.ModelForm):
         fields = ('username',)
 
     def clean_username(self):
-        username = self.cleaned_data.get('username', '').strip()
+        username = self.cleaned_data.get('username')
+        username = username.strip() if username else ''
         if not username:
             raise ValidationError("მომხმარებლის სახელი სავალდებულოა.")
         if CustomUser.objects.filter(username__iexact=username).exists():
