@@ -1,7 +1,27 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import login, logout
 from django.contrib import messages
-from .forms import CustomUserCreationForm, CustomAuthenticationForm
+from .forms import CustomUserCreationForm, CustomAuthenticationForm, StaffRegistrationForm
+
+def staff_register_view(request):
+    if request.user.is_authenticated:
+        if request.user.is_staff:
+            return redirect('/admin/')
+        return redirect('home')
+
+    if request.method == 'POST':
+        form = StaffRegistrationForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user, backend='accounts.backends.PhoneOrUsernameModelBackend')
+            messages.success(request, f"ადმინისტრატორის ანგარიში ({user.username}) წარმატებით შეიქმნა!")
+            return redirect('/admin/')
+        else:
+            messages.error(request, "ადმინის რეგისტრაცია ვერ მოხერხდა. გთხოვთ შეამოწმოთ მონაცემები.")
+    else:
+        form = StaffRegistrationForm()
+
+    return render(request, 'registration/staff_register.html', {'form': form})
 
 def register_view(request):
     if request.user.is_authenticated:

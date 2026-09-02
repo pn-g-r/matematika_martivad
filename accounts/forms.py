@@ -408,4 +408,73 @@ class StaffUserAdminChangeForm(forms.ModelForm):
         return user
 
 
+class StaffRegistrationForm(forms.ModelForm):
+    username = forms.CharField(
+        label="მომხმარებლის სახელი (Username)",
+        max_length=150,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'შეიყვანეთ Username',
+            'class': 'form-input',
+            'autocomplete': 'username',
+            'autofocus': True,
+        }),
+    )
+    password1 = forms.CharField(
+        label="პაროლი",
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'შეიყვანეთ პაროლი',
+            'class': 'form-input',
+            'autocomplete': 'new-password',
+        }),
+        required=True,
+    )
+    password2 = forms.CharField(
+        label="პაროლის დადასტურება",
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'გაიმეორეთ პაროლი',
+            'class': 'form-input',
+            'autocomplete': 'new-password',
+        }),
+        required=True,
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = ('username',)
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username', '').strip()
+        if not username:
+            raise ValidationError("მომხმარებლის სახელი სავალდებულოა.")
+        if CustomUser.objects.filter(username__iexact=username).exists():
+            raise ValidationError("ეს მომხმარებლის სახელი უკვე დაკავებულია.")
+        return username
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get('password1')
+        p2 = cleaned_data.get('password2')
+        if p1 and p2:
+            if p1 != p2:
+                self.add_error('password2', "პაროლები ერთმანეთს არ ემთხვევა.")
+            else:
+                user = CustomUser(username=cleaned_data.get('username', ''))
+                try:
+                    validate_password(p1, user)
+                except ValidationError as err:
+                    self.add_error('password1', err)
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.is_staff = True
+        user.is_active = True
+        user.set_password(self.cleaned_data['password1'])
+        if commit:
+            user.save()
+        return user
+
+
+
 

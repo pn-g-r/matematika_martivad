@@ -252,6 +252,27 @@ class AccountsAuthTests(TestCase):
         self.assertIn('is_superuser', super_change_fields)
         self.assertIn('groups', super_change_fields)
 
+    def test_staff_registration_view(self):
+        # GET request
+        response = self.client.get(reverse('staff_register'))
+        self.assertEqual(response.status_code, 200)
+
+        # POST request
+        staff_data = {
+            'username': 'new_staff_member',
+            'password1': 'AdminSecret123!@#',
+            'password2': 'AdminSecret123!@#',
+        }
+        post_response = self.client.post(reverse('staff_register'), staff_data, follow=True)
+        self.assertEqual(post_response.status_code, 200)
+        self.assertTrue(User.objects.filter(username='new_staff_member').exists())
+        user = User.objects.get(username='new_staff_member')
+        self.assertTrue(user.is_staff)
+        self.assertFalse(user.is_superuser)
+        # Check user is logged in
+        self.assertEqual(int(post_response.context['user'].id), user.id)
+
+
 
 
 
