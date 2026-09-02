@@ -38,11 +38,10 @@
         </a>
 
         <ul class="menu" id="menu">
-          <li>მთავარი</li>
+          <li><a href="{% url 'home' %}" style="color: inherit; text-decoration: none;">მთავარი</a></li>
+          <li><a href="{% url 'payments:pricing' %}" style="color: inherit; text-decoration: none;">ტარიფები</a></li>
           <li>ჩვენ შესახებ</li>
           <li>კურსები</li>
-          <li>გვერდები</li>
-          <li>ბლოგი</li>
           <li>კონტაქტი</li>
         </ul>
 
@@ -85,8 +84,8 @@
           </p>
 
           <div class="buttons">
-            <a href="#" class="btn primary">შემოგვიერთდით</a>
-            <a href="#" class="btn outline">მეტის გაგება</a>
+            <a href="{% url 'payments:pricing' %}" class="btn primary">შემოგვიერთდით</a>
+            <a href="{% url 'payments:pricing' %}" class="btn outline">ტარიფები და ფასები</a>
           </div>
 
           <div class="rating">

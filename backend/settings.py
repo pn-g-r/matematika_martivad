@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "nested_admin",
     "accounts",
     "courses",
+    "payments",
 ]
 
 MIDDLEWARE = [
@@ -133,4 +134,11 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
+
+# Flitt Payment Gateway Configuration
+FLITT_MERCHANT_ID = config('FLITT_MERCHANT_ID', default=1549901, cast=int)
+FLITT_SECRET_KEY = config('FLITT_SECRET_KEY', default='test')
+FLITT_CHECKOUT_URL = config('FLITT_CHECKOUT_URL', default='https://pay.flitt.com/api/checkout/url')
+FLITT_CURRENCY = 'GEL'
+
 

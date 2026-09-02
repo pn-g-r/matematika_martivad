@@ -22,5 +22,6 @@ urlpatterns = [
     path("admin/", admin.site.urls),
     path("_nested_admin/", include("nested_admin.urls")),
     path("accounts/", include("accounts.urls")),
+    path("payments/", include("payments.urls")),
     path("", include("courses.urls")),
 ]

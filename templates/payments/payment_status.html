@@ -1,0 +1,190 @@
+{% load static %}
+<!doctype html>
+<html lang="ka">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>გადახდის სტატუსი - მათემატიკა მარტივად</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .status-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: calc(100vh - 80px);
+        background: rgb(3, 7, 18);
+        padding: 40px 15px;
+      }
+      .status-card {
+        background: rgba(15, 17, 26, 0.85);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        padding: 45px 30px;
+        width: 100%;
+        max-width: 500px;
+        text-align: center;
+        color: #f8fafc;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+      }
+      .status-icon {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 36px;
+        margin: 0 auto 24px;
+      }
+      .status-icon.success {
+        background: rgba(34, 197, 94, 0.2);
+        color: #4ade80;
+        border: 2px solid #22c55e;
+      }
+      .status-icon.pending {
+        background: rgba(56, 189, 248, 0.2);
+        color: #38bdf8;
+        border: 2px solid #38bdf8;
+      }
+      .status-icon.danger {
+        background: rgba(239, 68, 68, 0.2);
+        color: #f87171;
+        border: 2px solid #ef4444;
+      }
+      .status-title {
+        font-size: 26px;
+        font-weight: 700;
+        margin-bottom: 12px;
+      }
+      .status-desc {
+        color: #94a3b8;
+        font-size: 15px;
+        line-height: 1.6;
+        margin-bottom: 30px;
+      }
+      .order-details-box {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 30px;
+        text-align: left;
+        font-size: 14px;
+      }
+      .order-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .order-row:last-child {
+        margin-bottom: 0;
+      }
+      .order-label {
+        color: #94a3b8;
+      }
+      .order-val {
+        color: #f8fafc;
+        font-weight: 600;
+      }
+      .btn-action {
+        display: inline-block;
+        width: 100%;
+        padding: 14px;
+        background: #38bdf8;
+        color: #0f172a;
+        text-decoration: none;
+        border-radius: 8px;
+        font-weight: 700;
+        font-size: 16px;
+        transition: background 0.3s;
+        box-sizing: border-box;
+      }
+      .btn-action:hover {
+        background: #0ea5e9;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="container nav">
+        <a href="{% url 'home' %}" class="logo" style="text-decoration: none; display: flex; align-items: center;">
+          <img src="{% static 'image/logo.webp' %}" alt="მათემატიკა მარტივად" style="height:48px; margin-right:12px; vertical-align:middle;" />
+          <span>მათემატიკა მარტივად</span>
+        </a>
+        <div class="nav-actions">
+          <a href="{% url 'home' %}" class="btn primary">მთავარი</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="status-container">
+      <div class="status-card">
+        {% if order and order.status == 'approved' %}
+        <div class="status-icon success">
+          <i class="fa-solid fa-check"></i>
+        </div>
+        <h2 class="status-title">გადახდა წარმატებულია!</h2>
+        <p class="status-desc">
+          გილოცავთ! თქვენ წარმატებით გაიარეთ გადახდა და მოგენიჭათ სრული წვდომა ყველა კურსსა და მასალაზე.
+        </p>
+        {% elif order and order.status == 'declined' %}
+        <div class="status-icon danger">
+          <i class="fa-solid fa-xmark"></i>
+        </div>
+        <h2 class="status-title">გადახდა უარყოფილია</h2>
+        <p class="status-desc">
+          სამწუხაროდ, გადახდა ვერ განხორციელდა. გთხოვთ გადაამოწმოთ ბარათის მონაცემები ან სცადოთ ხელახლა.
+        </p>
+        {% else %}
+        <div class="status-icon pending">
+          <i class="fa-solid fa-clock"></i>
+        </div>
+        <h2 class="status-title">გადახდა მუშავდება</h2>
+        <p class="status-desc">
+          თქვენი შეკვეთის მონაცემები მუშავდება. როგორც კი საბანკო დასტური მიიღება, წვდომა ავტომატურად გაგიაქტიურდებათ.
+        </p>
+        {% endif %}
+
+        {% if order %}
+        <div class="order-details-box">
+          <div class="order-row">
+            <span class="order-label">შეკვეთის ნომერი:</span>
+            <span class="order-val">{{ order.order_id }}</span>
+          </div>
+          <div class="order-row">
+            <span class="order-label">პაკეტი:</span>
+            <span class="order-val">{{ order.get_plan_type_display }}</span>
+          </div>
+          <div class="order-row">
+            <span class="order-label">თანხა:</span>
+            <span class="order-val">{{ order.amount_gel }} ₾</span>
+          </div>
+          <div class="order-row">
+            <span class="order-label">სტატუსი:</span>
+            <span class="order-val">{{ order.get_status_display }}</span>
+          </div>
+        </div>
+        {% endif %}
+
+        {% if order and order.status == 'approved' %}
+        <a href="{% url 'home' %}" class="btn-action">
+          <i class="fa-solid fa-graduation-cap" style="margin-right: 8px;"></i> სწავლის დაწყება
+        </a>
+        {% elif order and order.status == 'declined' %}
+        <a href="{% url 'payments:pricing' %}" class="btn-action" style="background: #ef4444; color: white;">
+          <i class="fa-solid fa-rotate-right" style="margin-right: 8px;"></i> ხელახლა ცდა
+        </a>
+        {% else %}
+        <a href="{% url 'home' %}" class="btn-action">
+          <i class="fa-solid fa-house" style="margin-right: 8px;"></i> მთავარ გვერდზე დაბრუნება
+        </a>
+        {% endif %}
+      </div>
+    </section>
+  </body>
+</html>

@@ -1,0 +1,288 @@
+{% load static %}
+<!doctype html>
+<html lang="ka">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ტარიფები და გამოწერა - მათემატიკა მარტივად</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      .pricing-section {
+        min-height: calc(100vh - 80px);
+        background: rgb(3, 7, 18);
+        padding: 60px 15px;
+        color: #f8fafc;
+      }
+      .pricing-header {
+        text-align: center;
+        max-width: 700px;
+        margin: 0 auto 50px;
+      }
+      .pricing-header h1 {
+        font-size: 36px;
+        margin-bottom: 15px;
+        background: linear-gradient(90deg, #fcd34d 0%, #dc2626 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .pricing-header p {
+        color: #94a3b8;
+        font-size: 16px;
+        line-height: 1.6;
+      }
+      .pricing-cards {
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+        gap: 30px;
+        flex-wrap: wrap;
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+      .pricing-card {
+        background: rgba(15, 17, 26, 0.85);
+        backdrop-filter: blur(20px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 20px;
+        padding: 40px 30px;
+        flex: 1;
+        min-width: 300px;
+        max-width: 440px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+      }
+      .pricing-card:hover {
+        transform: translateY(-6px);
+        border-color: #38bdf8;
+        box-shadow: 0 15px 35px rgba(56, 189, 248, 0.15);
+      }
+      .pricing-card.featured {
+        border-color: rgba(252, 211, 77, 0.5);
+        box-shadow: 0 15px 35px rgba(252, 211, 77, 0.12);
+      }
+      .pricing-card.featured:hover {
+        border-color: #fcd34d;
+        box-shadow: 0 20px 45px rgba(252, 211, 77, 0.25);
+      }
+      .plan-badge {
+        position: absolute;
+        top: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: linear-gradient(90deg, #fcd34d 0%, #dc2626 100%);
+        color: #0f172a;
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 16px;
+        border-radius: 20px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+      .plan-title {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 8px;
+        color: #f8fafc;
+      }
+      .plan-subtitle {
+        color: #94a3b8;
+        font-size: 14px;
+        margin-bottom: 25px;
+      }
+      .plan-price-box {
+        margin-bottom: 30px;
+        padding-bottom: 25px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .plan-price {
+        font-size: 48px;
+        font-weight: 800;
+        color: #38bdf8;
+        display: flex;
+        align-items: baseline;
+        gap: 4px;
+      }
+      .pricing-card.featured .plan-price {
+        color: #fcd34d;
+      }
+      .plan-currency {
+        font-size: 28px;
+      }
+      .plan-period {
+        font-size: 16px;
+        color: #94a3b8;
+        font-weight: 500;
+      }
+      .plan-features {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 35px;
+        text-align: left;
+      }
+      .plan-features li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 14px;
+        color: #cbd5e1;
+        font-size: 14px;
+      }
+      .plan-features li i {
+        color: #4ade80;
+        font-size: 16px;
+      }
+      .btn-subscribe {
+        display: block;
+        width: 100%;
+        padding: 16px;
+        text-align: center;
+        text-decoration: none;
+        border-radius: 10px;
+        font-weight: 700;
+        font-size: 16px;
+        transition: all 0.3s ease;
+        box-sizing: border-box;
+      }
+      .btn-subscribe.primary-blue {
+        background: #38bdf8;
+        color: #0f172a;
+      }
+      .btn-subscribe.primary-blue:hover {
+        background: #0ea5e9;
+      }
+      .btn-subscribe.primary-gold {
+        background: linear-gradient(90deg, #fcd34d 0%, #f59e0b 100%);
+        color: #0f172a;
+      }
+      .btn-subscribe.primary-gold:hover {
+        background: linear-gradient(90deg, #fbbf24 0%, #d97706 100%);
+      }
+      .current-access-alert {
+        max-width: 800px;
+        margin: 0 auto 40px;
+        background: rgba(34, 197, 94, 0.15);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        border-radius: 12px;
+        padding: 18px 24px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        color: #4ade80;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="container nav">
+        <a href="{% url 'home' %}" class="logo" style="text-decoration: none; display: flex; align-items: center;">
+          <img src="{% static 'image/logo.webp' %}" alt="მათემატიკა მარტივად" style="height:48px; margin-right:12px; vertical-align:middle;" />
+          <span>მათემატიკა მარტივად</span>
+        </a>
+        <div class="nav-actions">
+          <a href="{% url 'home' %}" class="btn primary">მთავარი</a>
+        </div>
+      </div>
+    </header>
+
+    <section class="pricing-section">
+      <div class="container">
+        <div class="pricing-header">
+          <h1>აირჩიეთ სასურველი პაკეტი</h1>
+          <p>
+            მიიღეთ შეუზღუდავი წვდომა IV-IX კლასის ყველა ვიდეო-გაკვეთილზე, ამოცანის დეტალურ ამოხსნასა და დამატებით მასალებზე.
+          </p>
+        </div>
+
+        {% if messages %}
+        <div style="max-width: 800px; margin: 0 auto 30px;">
+          {% for message in messages %}
+          <div style="padding: 12px 16px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; {% if message.tags == 'error' %}background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);{% else %}background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);{% endif %}">
+            {{ message }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if user_access and user_access.is_valid_now %}
+        <div class="current-access-alert">
+          <i class="fa-solid fa-circle-check" style="font-size: 24px;"></i>
+          <div>
+            <strong>თქვენ გაქვთ აქტიური წვდომა!</strong><br />
+            პაკეტი: <strong>{{ user_access.get_plan_type_display }}</strong> | მოქმედებს: <strong>{{ user_access.expires_at|date:"Y-m-d" }}</strong>-მდე.
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="pricing-cards">
+          <!-- Monthly Subscription (50 GEL / month) -->
+          <div class="pricing-card">
+            <div class="plan-badge">მოქნილი</div>
+            <div>
+              <h3 class="plan-title">ყოველთვიური გამოწერა</h3>
+              <p class="plan-subtitle">ავტომატური განახლება ყოველთვე</p>
+              
+              <div class="plan-price-box">
+                <div class="plan-price">
+                  <span class="plan-currency">₾</span>50
+                  <span class="plan-period">/ თვეში</span>
+                </div>
+              </div>
+
+              <ul class="plan-features">
+                <li><i class="fa-solid fa-check"></i> სრული წვდომა ყველა კლასის მასალაზე (IV - IX)</li>
+                <li><i class="fa-solid fa-check"></i> ყველა ვიდეო-გაკვეთილი და ამოხსნა</li>
+                <li><i class="fa-solid fa-check"></i> ავტომატური ყოველთვიური ჩამოჭრა</li>
+                <li><i class="fa-solid fa-check"></i> გაუქმება ნებისმიერ დროს</li>
+              </ul>
+            </div>
+
+            <a href="{% url 'payments:checkout_init' plan_type='monthly' %}" class="btn-subscribe primary-blue">
+              <i class="fa-solid fa-credit-card" style="margin-right: 8px;"></i> გამოწერა (50 ₾)
+            </a>
+          </div>
+
+          <!-- Yearly Plan (400 GEL / year) -->
+          <div class="pricing-card featured">
+            <div class="plan-badge">დაზოგეთ 200 ₾</div>
+            <div>
+              <h3 class="plan-title">1-წლიანი სრული პაკეტი</h3>
+              <p class="plan-subtitle">ერთჯერადი გადახდა 1 წლით</p>
+              
+              <div class="plan-price-box">
+                <div class="plan-price">
+                  <span class="plan-currency">₾</span>400
+                  <span class="plan-period">/ წელიწადში</span>
+                </div>
+              </div>
+
+              <ul class="plan-features">
+                <li><i class="fa-solid fa-check"></i> <strong>1 წლიანი შეუზღუდავი წვდომა</strong></li>
+                <li><i class="fa-solid fa-check"></i> ყველა კლასი (IV - IX) და განახლებები</li>
+                <li><i class="fa-solid fa-check"></i> <strong>დაზოგეთ 200 ლარი</strong> წლიურად</li>
+                <li><i class="fa-solid fa-check"></i> ერთჯერადი გადახდა (გამოწერის გარეშე)</li>
+                <li><i class="fa-solid fa-check"></i> პრიორიტეტული მხარდაჭერა</li>
+              </ul>
+            </div>
+
+            <a href="{% url 'payments:checkout_init' plan_type='yearly' %}" class="btn-subscribe primary-gold">
+              <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> შეძენა (400 ₾)
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
