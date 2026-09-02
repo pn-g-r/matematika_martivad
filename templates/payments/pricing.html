@@ -240,7 +240,7 @@
             {% endif %}
           </div>
           <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-            <a href="{% url 'course_detail' pk=selected_course.id %}" style="background: #22c55e; color: #0f172a; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; white-space: nowrap;">კურსზე გადასვლა →</a>
+            <a href="{% url 'course_detail' pk=selected_course.id %}#curriculum-section" style="background: #22c55e; color: #0f172a; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; white-space: nowrap;">კურსზე გადასვლა →</a>
             {% if course_access.auto_renew %}
             <form action="{% url 'payments:cancel_subscription' %}" method="post" onsubmit="return confirm('დარწმუნებული ხართ, რომ გსურთ ავტომატური გამოწერის გაუქმება? არსებული წვდომა დარჩება ვადის ამოწურვამდე, ხოლო თანხა აღარ ჩამოგეჭრებათ.');" style="display: inline;">
               {% csrf_token %}

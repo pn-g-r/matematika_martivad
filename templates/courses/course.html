@@ -124,7 +124,7 @@
         </div>
 
         <!-- CURRICULUM -->
-        <div class="course-curriculum" id="curriculum-section">
+        <div class="course-curriculum" id="curriculum-section" style="scroll-margin-top: 100px;">
           <h2 class="course-section-title">სასწავლო პროგრამა</h2>
 
           <div class="accordion">
@@ -526,6 +526,16 @@
               lockedModal.addEventListener('click', function(e) {
                   if (e.target === lockedModal) hideLockedModal();
               });
+          }
+
+          // Auto-scroll directly to curriculum section when navigating from catalogue or 'ჩემი გაკვეთილები'
+          if (window.location.hash === '#curriculum-section'{% if has_access %} || true{% endif %}) {
+              const curriculumEl = document.getElementById('curriculum-section');
+              if (curriculumEl) {
+                  setTimeout(function() {
+                      curriculumEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }, 150);
+              }
           }
       });
     </script>

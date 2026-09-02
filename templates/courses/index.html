@@ -283,7 +283,7 @@
           </span>
           {% if paid_course %}
           <a
-            href="{% url 'course_detail' pk=paid_course.id %}"
+            href="{% url 'course_detail' pk=paid_course.id %}#curriculum-section"
             class="btn primary"
             style="background: #10b981; border-color: #10b981; margin-right: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);"
           >
@@ -585,7 +585,7 @@
         <div class="course-grid" data-aos="fade-right">
           {% for course in courses %}
           <a
-            href="{% url 'course_detail' course.pk %}"
+            href="{% url 'course_detail' course.pk %}#curriculum-section"
             class="course-card"
             style="text-decoration: none; color: inherit; display: block"
           >

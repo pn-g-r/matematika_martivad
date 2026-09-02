@@ -183,7 +183,7 @@
 
         {% if order and order.status == 'approved' %}
           {% if order.course %}
-          <a href="{% url 'course_detail' pk=order.course.id %}" class="btn-action" style="background: #22c55e; color: #0f172a; font-weight: 700;">
+          <a href="{% url 'course_detail' pk=order.course.id %}#curriculum-section" class="btn-action" style="background: #22c55e; color: #0f172a; font-weight: 700;">
             <i class="fa-solid fa-graduation-cap" style="margin-right: 8px;"></i> გადადით კურსზე →
           </a>
           {% else %}
