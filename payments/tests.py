@@ -754,6 +754,15 @@ class PaymentsWorkflowTests(TestCase):
         # Must stay APPROVED
         self.assertEqual(order.status, OrderStatus.APPROVED)
 
+        # Also verify delayed 'declined' and 'expired' do not regress APPROVED order
+        for late_status in ('declined', 'expired'):
+            params['order_status'] = late_status
+            params['signature'] = generate_flitt_signature(params, secret_key='test')
+            res = self.client.post(reverse('payments:flitt_callback'), data=params, content_type='application/json')
+            self.assertEqual(res.status_code, 200)
+            order.refresh_from_db()
+            self.assertEqual(order.status, OrderStatus.APPROVED)
+
     def test_recurring_renewal_callback_creates_child_and_renews_access(self):
         parent_order = PaymentOrder.objects.create(
             order_id='MM_PARENT_REC_001',

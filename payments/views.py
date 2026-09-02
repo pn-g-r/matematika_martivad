@@ -239,18 +239,19 @@ def flitt_callback_view(request):
             )
             if not order:
                 try:
-                    order = PaymentOrder.objects.create(
-                        order_id=order_id,
-                        user=parent_order.user,
-                        course=parent_order.course,
-                        plan_type=parent_order.plan_type,
-                        amount_gel=Decimal(str(amount_tetri / 100)),
-                        amount_tetri=amount_tetri,
-                        currency=data.get('currency') or parent_order.currency,
-                        order_desc=f"ავტომატური განახლება - {parent_order.order_desc}",
-                        is_subscription=True,
-                        status=OrderStatus.PROCESSING,
-                    )
+                    with transaction.atomic():
+                        order = PaymentOrder.objects.create(
+                            order_id=order_id,
+                            user=parent_order.user,
+                            course=parent_order.course,
+                            plan_type=parent_order.plan_type,
+                            amount_gel=Decimal(str(amount_tetri / 100)),
+                            amount_tetri=amount_tetri,
+                            currency=data.get('currency') or parent_order.currency,
+                            order_desc=f"ავტომატური განახლება - {parent_order.order_desc}",
+                            is_subscription=True,
+                            status=OrderStatus.PROCESSING,
+                        )
                 except IntegrityError:
                     order = PaymentOrder.objects.select_for_update().get(order_id=order_id)
 
@@ -292,9 +293,9 @@ def flitt_callback_view(request):
     order.raw_response = data
 
     # 4. STATE REGRESSION GUARD:
-    # If order is already APPROVED, ignore any delayed out-of-order 'processing' webhooks
-    if order.status == OrderStatus.APPROVED and order_status == 'processing':
-        logger.info("Ignoring delayed 'processing' status for already APPROVED order %s", order.order_id)
+    # If order is already APPROVED, ignore any delayed out-of-order 'processing', 'declined', or 'expired' webhooks
+    if order.status == OrderStatus.APPROVED and order_status in ('processing', 'declined', 'expired'):
+        logger.info("Ignoring delayed '%s' status for already APPROVED order %s", order_status, order.order_id)
         return HttpResponse("OK", status=200)
 
     if order_status == 'approved':
@@ -302,7 +303,6 @@ def flitt_callback_view(request):
         # If this order has already been marked APPROVED, acknowledge without re-granting access.
         if order.status == OrderStatus.APPROVED:
             logger.info("Order %s was already approved. Acknowledging callback without re-granting access.", order.order_id)
-            order.save()
             return HttpResponse("OK", status=200)
 
         order.status = OrderStatus.APPROVED
