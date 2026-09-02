@@ -93,9 +93,14 @@ class PaymentsWorkflowTests(TestCase):
         self.assertContains(response, '1-წლიანი სრული პაკეტი')
 
     def test_checkout_init_requires_login(self):
-        response = self.client.get(reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}))
+        response = self.client.post(reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}), data={'course_id': self.course.id})
         self.assertEqual(response.status_code, 302)
         self.assertTrue('/accounts/login/' in response.url)
+
+    def test_checkout_init_rejects_get_request(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}))
+        self.assertEqual(response.status_code, 405)
 
     @patch.object(FlittPaymentClient, 'create_checkout_session')
     def test_checkout_init_monthly_subscription(self, mock_flitt):
@@ -105,7 +110,10 @@ class PaymentsWorkflowTests(TestCase):
             'payment_token': 'mock_token_123',
         }
         self.client.force_login(self.user)
-        response = self.client.get(reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}))
+        response = self.client.post(
+            reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}),
+            data={'course_id': self.course.id}
+        )
         
         order = PaymentOrder.objects.filter(user=self.user, plan_type=PlanType.MONTHLY).first()
         self.assertIsNotNone(order)
@@ -131,7 +139,10 @@ class PaymentsWorkflowTests(TestCase):
             'payment_token': 'mock_token_year_456',
         }
         self.client.force_login(self.user)
-        response = self.client.get(reverse('payments:checkout_init', kwargs={'plan_type': 'yearly'}))
+        response = self.client.post(
+            reverse('payments:checkout_init', kwargs={'plan_type': 'yearly'}),
+            data={'course_id': self.course.id}
+        )
         
         order = PaymentOrder.objects.filter(user=self.user, plan_type=PlanType.YEARLY).first()
         self.assertIsNotNone(order)
@@ -299,8 +310,9 @@ class PaymentsWorkflowTests(TestCase):
 
         self.client.force_login(self.user)
         # 1. Checkout init with course_id
-        response = self.client.get(
-            reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}) + f'?course_id={course_a.id}'
+        response = self.client.post(
+            reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}),
+            data={'course_id': course_a.id}
         )
         self.assertEqual(response.status_code, 302)
         order = PaymentOrder.objects.filter(user=self.user, course=course_a).first()
@@ -441,6 +453,7 @@ class PaymentsWorkflowTests(TestCase):
         order = PaymentOrder.objects.create(
             order_id='MM_IDEMPOTENT_001',
             user=self.user,
+            course=self.course,
             plan_type=PlanType.MONTHLY,
             amount_gel=Decimal('50.00'),
             amount_tetri=5000,
@@ -582,6 +595,7 @@ class PaymentsWorkflowTests(TestCase):
         order = PaymentOrder.objects.create(
             order_id='MM_FORM_ENCODED_001',
             user=self.user,
+            course=self.course,
             plan_type=PlanType.MONTHLY,
             amount_gel=Decimal('50.00'),
             amount_tetri=5000,
@@ -603,6 +617,111 @@ class PaymentsWorkflowTests(TestCase):
         self.assertEqual(res.status_code, 200)
         order.refresh_from_db()
         self.assertEqual(order.status, OrderStatus.APPROVED)
+
+    def test_callback_rejects_amount_and_currency_mismatch(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_MISMATCH_001',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            status=OrderStatus.PROCESSING,
+        )
+        # 1. Amount mismatch (e.g. 100 tetri instead of 5000)
+        bad_amount = {
+            'order_id': order.order_id,
+            'merchant_id': 1549901,
+            'amount': '100',
+            'currency': 'GEL',
+            'order_status': 'approved',
+            'response_status': 'success',
+        }
+        bad_amount['signature'] = generate_flitt_signature(bad_amount, secret_key='test')
+        res1 = self.client.post(reverse('payments:flitt_callback'), data=bad_amount, content_type='application/json')
+        self.assertEqual(res1.status_code, 400)
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.PROCESSING)
+
+        # 2. Currency mismatch (e.g. USD instead of GEL)
+        bad_curr = {
+            'order_id': order.order_id,
+            'merchant_id': 1549901,
+            'amount': '5000',
+            'currency': 'USD',
+            'order_status': 'approved',
+            'response_status': 'success',
+        }
+        bad_curr['signature'] = generate_flitt_signature(bad_curr, secret_key='test')
+        res2 = self.client.post(reverse('payments:flitt_callback'), data=bad_curr, content_type='application/json')
+        self.assertEqual(res2.status_code, 400)
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.PROCESSING)
+
+    def test_payment_response_view_cannot_grant_access_via_forged_post(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_FORGE_001',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            status=OrderStatus.PROCESSING,
+        )
+        # Malicious user attempts forged POST to response view with order_status=approved
+        res = self.client.post(reverse('payments:payment_response'), data={
+            'order_id': order.order_id,
+            'order_status': 'approved',
+        })
+        self.assertEqual(res.status_code, 200)
+        order.refresh_from_db()
+        # Order MUST remain PROCESSING - passive view never fulfills!
+        self.assertEqual(order.status, OrderStatus.PROCESSING)
+        self.assertFalse(UserCourseAccess.objects.filter(user=self.user, course=self.course).exists())
+
+    @patch.object(FlittPaymentClient, 'cancel_subscription')
+    def test_cancel_subscription_fails_safely_when_gateway_fails(self, mock_cancel):
+        mock_cancel.return_value = {'response_status': 'error', 'error_message': 'Network timeout'}
+        order = PaymentOrder.objects.create(
+            order_id='MM_SUB_CANCEL_FAIL',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.APPROVED,
+        )
+        access = UserCourseAccess.objects.create(
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=True,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+            last_order=order,
+        )
+        self.client.force_login(self.user)
+        res = self.client.post(reverse('payments:cancel_subscription'), data={'course_id': self.course.id})
+        self.assertEqual(res.status_code, 302)
+        access.refresh_from_db()
+        # auto_renew MUST remain True because gateway call failed!
+        self.assertTrue(access.auto_renew)
+
+    def test_checkout_init_fails_safely_when_course_not_found(self):
+        self.client.force_login(self.user)
+        # Post non-existent course_id
+        res = self.client.post(
+            reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}),
+            data={'course_id': 999999}
+        )
+        self.assertEqual(res.status_code, 302)
+        # Ensure no orders were created
+        self.assertFalse(PaymentOrder.objects.filter(order_id__startswith='MM_C999999').exists())
 
 
 

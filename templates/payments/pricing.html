@@ -275,9 +275,15 @@
               </ul>
             </div>
 
-            <a href="{% url 'payments:checkout_init' plan_type='monthly' %}{% if selected_course %}?course_id={{ selected_course.id }}{% endif %}" class="btn-subscribe primary-blue">
-              <i class="fa-solid fa-credit-card" style="margin-right: 8px;"></i> გამოწერა (50 ₾)
-            </a>
+            <form method="post" action="{% url 'payments:checkout_init' plan_type='monthly' %}" style="margin: 0; width: 100%;">
+              {% csrf_token %}
+              {% if selected_course %}
+              <input type="hidden" name="course_id" value="{{ selected_course.id }}">
+              {% endif %}
+              <button type="submit" class="btn-subscribe primary-blue" style="border: none; cursor: pointer; font-family: inherit;">
+                <i class="fa-solid fa-credit-card" style="margin-right: 8px;"></i> გამოწერა (50 ₾)
+              </button>
+            </form>
           </div>
 
           <!-- Yearly Plan (400 GEL / year) -->
@@ -303,9 +309,15 @@
               </ul>
             </div>
 
-            <a href="{% url 'payments:checkout_init' plan_type='yearly' %}{% if selected_course %}?course_id={{ selected_course.id }}{% endif %}" class="btn-subscribe primary-gold">
-              <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> შეძენა (400 ₾)
-            </a>
+            <form method="post" action="{% url 'payments:checkout_init' plan_type='yearly' %}" style="margin: 0; width: 100%;">
+              {% csrf_token %}
+              {% if selected_course %}
+              <input type="hidden" name="course_id" value="{{ selected_course.id }}">
+              {% endif %}
+              <button type="submit" class="btn-subscribe primary-gold" style="border: none; cursor: pointer; font-family: inherit;">
+                <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> შეძენა (400 ₾)
+              </button>
+            </form>
           </div>
         </div>
       </div>

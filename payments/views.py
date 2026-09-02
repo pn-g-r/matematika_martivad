@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.contrib import messages
@@ -76,19 +77,22 @@ def pricing_view(request):
 
 
 @login_required
+@require_POST
 def checkout_init_view(request, plan_type):
     if plan_type not in PLANS_CONFIG:
         messages.error(request, "არჩეული სატარიფო პაკეტი არასწორია.")
         return redirect('payments:pricing')
 
-    course_id = request.GET.get('course_id') or request.POST.get('course_id')
+    course_id = request.POST.get('course_id')
     selected_course = None
     if course_id:
         selected_course = Course.objects.filter(pk=course_id).first()
     if not selected_course and getattr(request.user, 'grade', None):
         selected_course = Course.objects.filter(grade=request.user.grade).first()
+
     if not selected_course:
-        selected_course = Course.objects.first()
+        messages.error(request, "გთხოვთ აირჩიოთ კურსი კატალოგიდან.")
+        return redirect('payments:pricing')
 
     plan_info = PLANS_CONFIG[plan_type]
     prefix = f"MM_C{selected_course.id}_SUB" if plan_info['is_subscription'] else f"MM_C{selected_course.id}_YEAR"
@@ -242,7 +246,30 @@ def flitt_callback_view(request):
         logger.error("PaymentOrder %s (parent: %s) not found for Flitt callback.", order_id, parent_order_id)
         return HttpResponse("Order not found", status=404)
 
-    # 2. Update Order fields
+    # 2. AMOUNT & CURRENCY INTEGRITY CHECK
+    callback_amount = data.get('amount')
+    callback_currency = data.get('currency')
+
+    if callback_amount is not None:
+        try:
+            if int(callback_amount) != order.amount_tetri:
+                logger.error(
+                    "Amount mismatch for order %s: expected %s tetri, got %s",
+                    order.order_id, order.amount_tetri, callback_amount
+                )
+                return HttpResponse("Amount mismatch", status=400)
+        except (ValueError, TypeError):
+            logger.error("Invalid amount format in callback for order %s: %s", order.order_id, callback_amount)
+            return HttpResponse("Invalid amount", status=400)
+
+    if callback_currency and callback_currency.upper() != order.currency.upper():
+        logger.error(
+            "Currency mismatch for order %s: expected %s, got %s",
+            order.order_id, order.currency, callback_currency
+        )
+        return HttpResponse("Currency mismatch", status=400)
+
+    # 3. Update Order fields
     order_status = (data.get('order_status') or '').lower()
     order.flitt_payment_id = str(data.get('payment_id', '') or order.flitt_payment_id or '')
     order.masked_card = str(data.get('masked_card', '') or order.masked_card or '')
@@ -264,13 +291,10 @@ def flitt_callback_view(request):
         order.save()
         rectoken = data.get('rectoken', '')
         course = order.course
-        if not course:
-            course = Course.objects.filter(grade=order.user.grade).first() if getattr(order.user, 'grade', None) else Course.objects.first()
-            if course:
-                order.course = course
-                order.save(update_fields=['course'])
 
-        if course:
+        if not course:
+            logger.error("Order %s approved by Flitt, but has no associated course! Refusing to assign random course.", order.order_id)
+        else:
             UserCourseAccess.grant_or_renew_access(
                 user=order.user,
                 course=course,
@@ -290,10 +314,10 @@ def flitt_callback_view(request):
 
 
 @csrf_exempt
-@transaction.atomic
 def payment_response_view(request):
     """
-    User browser redirect handler after completing or canceling checkout on Flitt gateway.
+    Passive user browser redirect handler after completing checkout on Flitt gateway.
+    Strictly read-only display. Fulfillment is exclusively handled by the verified flitt_callback_view webhook.
     """
     order_id = request.GET.get('order_id') or request.POST.get('order_id')
     if not order_id and request.body:
@@ -309,51 +333,7 @@ def payment_response_view(request):
 
     order = None
     if order_id:
-        order = PaymentOrder.objects.select_for_update().filter(order_id=order_id).first()
-
-    # Fallback for authenticated student returning from gateway:
-    if not order and request.user.is_authenticated:
-        order = PaymentOrder.objects.select_for_update().filter(
-            user=request.user,
-            status=OrderStatus.PROCESSING
-        ).order_by('-created_at').first()
-
-    if order and order.status != OrderStatus.APPROVED:
-        incoming_status = (request.POST.get('order_status') or '').lower()
-        rectoken = request.POST.get('rectoken', '')
-        masked_card = request.POST.get('masked_card', '')
-
-        # If not provided in POST, query Flitt API status directly
-        if incoming_status != 'approved':
-            client = FlittPaymentClient()
-            status_info = client.get_order_status(order.order_id)
-            if status_info:
-                incoming_status = (status_info.get('order_status') or '').lower()
-                rectoken = rectoken or status_info.get('rectoken', '')
-                masked_card = masked_card or status_info.get('masked_card', '')
-
-        if incoming_status == 'approved':
-            order.status = OrderStatus.APPROVED
-            if masked_card:
-                order.masked_card = masked_card
-            course = order.course
-            if not course:
-                course = Course.objects.filter(grade=order.user.grade).first() if getattr(order.user, 'grade', None) else Course.objects.first()
-                if course:
-                    order.course = course
-            order.save(update_fields=['status', 'masked_card', 'course', 'updated_at'])
-            if course:
-                UserCourseAccess.grant_or_renew_access(
-                    user=order.user,
-                    course=course,
-                    plan_type=order.plan_type,
-                    payment_order=order,
-                    rectoken=rectoken,
-                )
-                logger.info("Order %s approved and course '%s' access granted via payment_response_view.", order.order_id, course.title)
-        elif incoming_status in ('declined', 'expired', 'reversed'):
-            order.status = incoming_status
-            order.save(update_fields=['status', 'updated_at'])
+        order = PaymentOrder.objects.filter(order_id=order_id).first()
 
     context = {
         'order': order,
@@ -398,18 +378,36 @@ def cancel_subscription_view(request):
         return redirect('payments:pricing')
 
     order = active_access.last_order
+    cancel_success = False
+
     if order:
         client = FlittPaymentClient()
         res = client.cancel_subscription(order.order_id)
         logger.info("Subscription cancellation for order %s result: %s", order.order_id, res)
+        if isinstance(res, dict) and (
+            res.get('response_status') == 'success' or
+            res.get('status') in ('disabled', 'canceled')
+        ):
+            cancel_success = True
+        else:
+            logger.error("Flitt returned failure when canceling order %s: %s", order.order_id, res)
+            cancel_success = False
+    else:
+        cancel_success = True
 
-    active_access.auto_renew = False
-    active_access.save(update_fields=['auto_renew', 'updated_at'])
+    if cancel_success:
+        active_access.auto_renew = False
+        active_access.save(update_fields=['auto_renew', 'updated_at'])
+        messages.success(
+            request,
+            f"თქვენი გამოწერა წარმატებით გაუქმდა. არსებული წვდომა ძალაში რჩება {active_access.expires_at.strftime('%Y-%m-%d')}-მდე, რის შემდეგაც თანხა აღარ ჩამოგეჭრებათ."
+        )
+    else:
+        messages.error(
+            request,
+            "გამოწერის ავტომატური გაუქმება საგადახდო სისტემაში ვერ მოხერხდა. გთხოვთ სცადოთ თავიდან ან მიმართოთ ადმინისტრაციას."
+        )
 
-    messages.success(
-        request,
-        f"თქვენი გამოწერა წარმატებით გაუქმდა. არსებული წვდომა ძალაში რჩება {active_access.expires_at.strftime('%Y-%m-%d')}-მდე, რის შემდეგაც თანხა აღარ ჩამოგეჭრებათ."
-    )
     if next_url:
         return redirect(next_url)
     return redirect('payments:pricing')

@@ -201,6 +201,12 @@
         </a>
         {% endif %}
       </div>
-    </section>
+    {% if order and order.status == 'processing' %}
+    <script>
+      setTimeout(function() {
+        window.location.reload();
+      }, 3000);
+    </script>
+    {% endif %}
   </body>
 </html>
