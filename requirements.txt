@@ -4,3 +4,6 @@ django-nested-admin==4.1.6
 python-decouple==3.8
 sqlparse==0.5.5
 tzdata==2026.2
+requests>=2.31.0
+flittpayments>=3.0.0
+

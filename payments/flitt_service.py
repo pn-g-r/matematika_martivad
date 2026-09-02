@@ -51,11 +51,62 @@ def verify_flitt_signature(params: dict, secret_key: str = None) -> bool:
     return received_signature.lower() == expected_signature.lower()
 
 
+import hashlib
+import json
+import logging
+from datetime import datetime
+from django.conf import settings
+from flittpayments import Api, Checkout
+
+logger = logging.getLogger(__name__)
+
+def generate_flitt_signature(params: dict, secret_key: str = None) -> str:
+    """
+    Generate SHA1 signature for Flitt request or response parameters.
+    Rules:
+    - Exclude 'signature' and 'response_signature_string'
+    - Exclude parameters that are None or empty string ''
+    - Retain 0 or '0'
+    - Sort keys alphabetically
+    - Prepend secret_key, join with '|'
+    - Compute sha1 lowercase hex digest
+    """
+    secret = secret_key or getattr(settings, 'FLITT_SECRET_KEY', 'test')
+
+    data = [secret]
+    valid_keys = [
+        k for k in sorted(params.keys())
+        if k not in ('signature', 'response_signature_string')
+        and params[k] is not None
+        and params[k] != ''
+    ]
+
+    for k in valid_keys:
+        val = params[k]
+        if isinstance(val, (dict, list)):
+            continue
+        data.append(str(val))
+
+    sign_string = "|".join(data)
+    return hashlib.sha1(sign_string.encode('utf-8')).hexdigest().lower()
+
+
+def verify_flitt_signature(params: dict, secret_key: str = None) -> bool:
+    """
+    Validate the signature received in a callback or response from Flitt.
+    """
+    received_signature = params.get('signature', '')
+    if not received_signature:
+        return False
+
+    expected_signature = generate_flitt_signature(params, secret_key=secret_key)
+    return received_signature.lower() == expected_signature.lower()
+
+
 class FlittPaymentClient:
-    def __init__(self, merchant_id: int = None, secret_key: str = None, api_url: str = None):
+    def __init__(self, merchant_id: int = None, secret_key: str = None):
         self.merchant_id = merchant_id or getattr(settings, 'FLITT_MERCHANT_ID', 1549901)
         self.secret_key = secret_key or getattr(settings, 'FLITT_SECRET_KEY', 'test')
-        self.api_url = api_url or getattr(settings, 'FLITT_CHECKOUT_URL', 'https://pay.flitt.com/api/checkout/url')
 
     def create_checkout_session(
         self,
@@ -70,53 +121,114 @@ class FlittPaymentClient:
         recurring_data: dict = None,
     ) -> dict:
         """
-        Create a Flitt hosted checkout order.
-        Returns dict with response_status and checkout_url (or error_message).
+        Create a Flitt hosted checkout order for one-time payments (v1.0)
+        or subscription payments (v2.0).
+        Returns a dict with 'response_status', 'checkout_url', and 'payment_id'.
         """
-        request_params = {
-            "merchant_id": self.merchant_id,
-            "order_id": order_id,
-            "amount": amount_tetri,
-            "currency": currency,
-            "order_desc": order_desc,
-            "server_callback_url": server_callback_url,
-            "response_url": response_url,
-        }
-
-        if sender_email:
-            request_params["sender_email"] = sender_email
-
-        if is_subscription:
-            request_params["subscription"] = "Y"
-            # Default monthly recurring configuration if not provided
-            request_params["recurring_data"] = recurring_data or {
-                "every": 1,
-                "period": "month",
-                "amount": amount_tetri,
-                "state": "shown_readonly",
-                "readonly": "Y",
-            }
-
-        # Calculate signature from base scalar parameters
-        signature = generate_flitt_signature(request_params, secret_key=self.secret_key)
-        request_params["signature"] = signature
-
-        payload = {"request": request_params}
-
         try:
-            response = requests.post(
-                self.api_url,
-                json=payload,
-                headers={"Content-Type": "application/json"},
-                timeout=20,
-            )
-            response.raise_for_status()
-            res_json = response.json()
-            return res_json.get("response", {})
-        except requests.RequestException as exc:
-            logger.error("Flitt API connection error for order %s: %s", order_id, exc)
+            if is_subscription:
+                api = Api(
+                    merchant_id=self.merchant_id,
+                    secret_key=self.secret_key,
+                    api_protocol='2.0'
+                )
+                checkout = Checkout(api=api)
+
+                start_date = datetime.now().strftime('%Y-%m-%d')
+                rec_payload = recurring_data or {
+                    "every": 1,
+                    "period": "month",
+                    "amount": amount_tetri,
+                    "start_time": start_date,
+                    "readonly": "y",
+                    "state": "y",
+                }
+
+                sub_data = {
+                    "order_id": order_id,
+                    "amount": amount_tetri,
+                    "currency": currency,
+                    "order_desc": order_desc,
+                    "response_url": response_url,
+                    "server_callback_url": server_callback_url,
+                    "recurring_data": rec_payload,
+                }
+                if sender_email:
+                    sub_data["sender_email"] = sender_email
+
+                res = checkout.subscription(sub_data)
+
+                checkout_url = ""
+                payment_id = ""
+                if isinstance(res, dict):
+                    if "data" in res:
+                        try:
+                            parsed_data = json.loads(res["data"])
+                            order_dict = parsed_data.get("order", {})
+                            checkout_url = order_dict.get("checkout_url", "")
+                            payment_id = str(order_dict.get("payment_id", ""))
+                        except Exception as parse_err:
+                            logger.error("Failed to parse Flitt subscription response data: %s", parse_err)
+                    elif "checkout_url" in res:
+                        checkout_url = res["checkout_url"]
+                        payment_id = str(res.get("payment_id", ""))
+
+                if checkout_url:
+                    return {
+                        "response_status": "success",
+                        "checkout_url": checkout_url,
+                        "payment_id": payment_id,
+                        "raw": res,
+                    }
+                else:
+                    return {
+                        "response_status": "failure",
+                        "error_message": "Checkout URL not found in Flitt response",
+                        "raw": res,
+                    }
+            else:
+                api = Api(
+                    merchant_id=self.merchant_id,
+                    secret_key=self.secret_key,
+                    api_protocol='1.0'
+                )
+                checkout = Checkout(api=api)
+
+                order_data = {
+                    "order_id": order_id,
+                    "amount": amount_tetri,
+                    "currency": currency,
+                    "order_desc": order_desc,
+                    "response_url": response_url,
+                    "server_callback_url": server_callback_url,
+                }
+                if sender_email:
+                    order_data["sender_email"] = sender_email
+
+                res = checkout.url(order_data)
+
+                checkout_url = res.get("checkout_url", "")
+                payment_id = str(res.get("payment_id", ""))
+                response_status = res.get("response_status", "success" if checkout_url else "failure")
+
+                if checkout_url:
+                    return {
+                        "response_status": "success",
+                        "checkout_url": checkout_url,
+                        "payment_id": payment_id,
+                        "raw": res,
+                    }
+                else:
+                    return {
+                        "response_status": response_status,
+                        "error_message": res.get("error_message", "Failed to create checkout URL"),
+                        "raw": res,
+                    }
+
+        except Exception as exc:
+            logger.exception("Flitt API error for order %s: %s", order_id, exc)
             return {
                 "response_status": "failure",
-                "error_message": f"Flitt API connection failed: {str(exc)}",
-                "error_code": "CONNECTION_ERROR",
+                "error_message": str(exc),
+                "error_code": "EXCEPTION",
             }
