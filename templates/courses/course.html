@@ -218,30 +218,26 @@
         {% if has_access %}
           {% if course_access and course_access.auto_renew %}
           <div style="text-align: center; margin-top: 10px;">
-            <form action="{% url 'payments:cancel_subscription' %}" method="post" onsubmit="return confirm('დარწმუნებული ხართ, რომ გსურთ სწავლის შეწყვეტა (ავტომატური გამოწერის გაუქმება)? არსებული წვდომა ძალაში დარჩება პერიოდის ბოლომდე, ხოლო მომდევნო თვის თანხა აღარ ჩამოგეჭრებათ.');">
-              {% csrf_token %}
-              <input type="hidden" name="course_id" value="{{ course.id }}">
-              <input type="hidden" name="next" value="{{ request.path }}">
-              <button
-                type="submit"
-                style="
-                  background: transparent;
-                  border: none;
-                  color: #64748b;
-                  font-size: 12px;
-                  cursor: pointer;
-                  padding: 4px 8px;
-                  text-decoration: underline;
-                  opacity: 0.65;
-                  transition: opacity 0.2s, color 0.2s;
-                  font-family: inherit;
-                "
-                onmouseover="this.style.opacity='1'; this.style.color='#94a3b8';"
-                onmouseout="this.style.opacity='0.65'; this.style.color='#64748b';"
-              >
-                სწავლის შეწყვეტა
-              </button>
-            </form>
+            <button
+              type="button"
+              id="open-cancel-modal"
+              style="
+                background: transparent;
+                border: none;
+                color: #64748b;
+                font-size: 12px;
+                cursor: pointer;
+                padding: 4px 8px;
+                text-decoration: underline;
+                opacity: 0.65;
+                transition: opacity 0.2s, color 0.2s;
+                font-family: inherit;
+              "
+              onmouseover="this.style.opacity='1'; this.style.color='#94a3b8';"
+              onmouseout="this.style.opacity='0.65'; this.style.color='#64748b';"
+            >
+              სწავლის შეწყვეტა
+            </button>
           </div>
           {% elif course_access and not course_access.auto_renew %}
           <div style="font-size: 11px; color: #64748b; text-align: center; margin-top: 8px;">
@@ -477,6 +473,61 @@
       </div>
     </div>
 
+    <!-- CANCEL SUBSCRIPTION CONFIRMATION MODAL -->
+    {% if has_access and course_access and course_access.auto_renew %}
+    <div id="cancel-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); z-index: 99999; align-items: center; justify-content: center; padding: 20px;">
+      <div style="background: #0f172a; color: #fff; max-width: 480px; width: 100%; border-radius: 24px; padding: 36px 30px; text-align: center; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); border: 1px solid rgba(255, 255, 255, 0.1);">
+        <!-- Close button -->
+        <button id="close-cancel-modal" style="position: absolute; top: 20px; right: 20px; background: transparent; border: none; color: #94a3b8; font-size: 26px; cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'"><i class="bx bx-x"></i></button>
+
+        <!-- Warning Icon -->
+        <div style="width: 72px; height: 72px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.25); color: #f59e0b; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; font-size: 32px;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+
+        <h3 style="font-size: 22px; font-weight: 700; margin-bottom: 12px; color: #f8fafc;">ნამდვილად გსურთ სწავლის შეწყვეტა?</h3>
+        
+        <p style="font-size: 14px; color: #94a3b8; line-height: 1.6; margin-bottom: 20px;">
+          გამოწერის გაუქმების შემდეგ თქვენი ავტომატური ყოველთვიური გადახდა შეწყდება, თუმცა გთხოვთ გაითვალისწინოთ:
+        </p>
+
+        <!-- Reminder Box -->
+        <div style="background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 18px; text-align: left; margin-bottom: 24px; font-size: 13px; line-height: 1.6;">
+          <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; color: #38bdf8;">
+            <i class="fa-solid fa-clock" style="margin-top: 3px; font-size: 15px;"></i>
+            <span>არსებული წვდომა ძალაში დარჩება <strong>{{ course_access.expires_at|date:"Y წლის d E" }}</strong>-მდე.</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 10px; margin-bottom: 12px; color: #f87171;">
+            <i class="fa-solid fa-lock" style="margin-top: 3px; font-size: 15px;"></i>
+            <span>ამ ვადის გასვლის შემდეგ <strong>სრულად დაგებლოკებათ წვდომა</strong> ყველა ვიდეო-გაკვეთილზე, ამოცანების გარჩევებსა და ტესტებზე.</span>
+          </div>
+          <div style="display: flex; align-items: flex-start; gap: 10px; color: #f87171;">
+            <i class="fa-solid fa-chart-line" style="margin-top: 3px; font-size: 15px;"></i>
+            <span>შეწყდება თქვენი სასწავლო პროგრესის აღრიცხვა და კურსის გასაგრძელებლად დაგჭირდებათ ხელახალი შეძენა.</span>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Primary Stay Button -->
+          <button id="keep-studying-btn" type="button" class="btn primary" style="width: 100%; padding: 14px; font-size: 15px; font-weight: 600; text-align: center; border-radius: 12px; cursor: pointer; background: linear-gradient(135deg, #0072ff, #00c6ff); border: none; color: #fff; box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);">
+            <i class="fa-solid fa-graduation-cap" style="margin-right: 8px;"></i> კურსზე დარჩენა (გამოწერის შენარჩუნება)
+          </button>
+
+          <!-- Cancel Subscription Form Submit Button -->
+          <form action="{% url 'payments:cancel_subscription' %}" method="post" style="width: 100%; margin: 0;">
+            {% csrf_token %}
+            <input type="hidden" name="course_id" value="{{ course.id }}">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" style="background: transparent; border: 1px solid rgba(239, 68, 68, 0.35); color: #f87171; width: 100%; padding: 12px; font-size: 13px; font-weight: 600; border-radius: 12px; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.12)'" onmouseout="this.style.background='transparent'">
+              გამოწერის გაუქმება და სწავლის შეწყვეტა
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
     <!-- AOS Js-->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
     <!-- Custom Js-->
@@ -566,6 +617,44 @@
                   if (e.target === lockedModal) hideLockedModal();
               });
           }
+
+          // Cancel Subscription Modal Handler
+          const openCancelBtn = document.getElementById('open-cancel-modal');
+          const cancelModal = document.getElementById('cancel-modal');
+          const closeCancelBtn = document.getElementById('close-cancel-modal');
+          const keepStudyingBtn = document.getElementById('keep-studying-btn');
+
+          function showCancelModal() {
+              if (cancelModal) {
+                  cancelModal.style.display = 'flex';
+                  document.body.style.overflow = 'hidden';
+              }
+          }
+
+          function hideCancelModal() {
+              if (cancelModal) {
+                  cancelModal.style.display = 'none';
+                  document.body.style.overflow = 'auto';
+              }
+          }
+
+          if (openCancelBtn) openCancelBtn.addEventListener('click', showCancelModal);
+          if (closeCancelBtn) closeCancelBtn.addEventListener('click', hideCancelModal);
+          if (keepStudyingBtn) keepStudyingBtn.addEventListener('click', hideCancelModal);
+          if (cancelModal) {
+              cancelModal.addEventListener('click', function(e) {
+                  if (e.target === cancelModal) hideCancelModal();
+              });
+          }
+
+          // Escape key closes modals
+          document.addEventListener('keydown', function(e) {
+              if (e.key === 'Escape') {
+                  hideLockedModal();
+                  hideCancelModal();
+                  closeVideoModal();
+              }
+          });
 
           // Auto-scroll directly to curriculum section ONLY if user has purchased the course
           {% if has_access %}
