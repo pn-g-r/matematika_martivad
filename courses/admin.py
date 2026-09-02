@@ -1,32 +1,31 @@
 from django.contrib import admin
-from adminsortable2.admin import SortableAdminMixin, SortableInlineAdminMixin
+import nested_admin
 from .models import Course, LearningObjective, Chapter, Lesson
 
-class LessonInline(SortableInlineAdminMixin, admin.TabularInline):
+class LessonNestedInline(nested_admin.NestedTabularInline):
     model = Lesson
+    fields = ('title', 'video_url', 'duration', 'order')
     extra = 1
+    sortable_field_name = "order"
 
-class ChapterInline(SortableInlineAdminMixin, admin.StackedInline):
+class ChapterNestedInline(nested_admin.NestedStackedInline):
     model = Chapter
+    fields = ('title', 'order')
+    inlines = [LessonNestedInline]
     extra = 1
-    show_change_link = True
+    sortable_field_name = "order"
 
-class LearningObjectiveInline(admin.TabularInline):
+class LearningObjectiveNestedInline(nested_admin.NestedTabularInline):
     model = LearningObjective
+    fields = ('text',)
     extra = 1
 
 @admin.register(Course)
-class CourseAdmin(SortableAdminMixin, admin.ModelAdmin):
-    inlines = [LearningObjectiveInline, ChapterInline]
-    list_display = ('title', 'grade', 'price', 'order')
+class CourseAdmin(nested_admin.NestedModelAdmin):
+    inlines = [LearningObjectiveNestedInline, ChapterNestedInline]
+    list_display = ('title', 'grade', 'instructor_name', 'price', 'order')
+    list_editable = ('order',)
+    search_fields = ('title', 'grade', 'instructor_name')
+    sortable_field_name = "order"
 
-@admin.register(Chapter)
-class ChapterAdmin(SortableAdminMixin, admin.ModelAdmin):
-    inlines = [LessonInline]
-    list_display = ('title', 'course', 'order')
-
-admin.site.register(LearningObjective)
-@admin.register(Lesson)
-class LessonAdmin(SortableAdminMixin, admin.ModelAdmin):
-    list_display = ('title', 'chapter', 'order')
 
