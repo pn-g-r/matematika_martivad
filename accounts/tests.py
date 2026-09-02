@@ -142,3 +142,41 @@ class AccountsAuthTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context['user'].is_authenticated)
 
+    def test_superuser_creation_with_classic_fields(self):
+        superuser = User.objects.create_superuser(
+            phone_number='555000111',
+            password='AdminPassword123!',
+            email='admin@school.ge',
+            first_name='ადმინ',
+            last_name='ადმინიძე'
+        )
+        self.assertTrue(superuser.is_superuser)
+        self.assertTrue(superuser.is_staff)
+        self.assertEqual(superuser.email, 'admin@school.ge')
+        self.assertEqual(superuser.first_name, 'ადმინ')
+        self.assertEqual(superuser.last_name, 'ადმინიძე')
+        self.assertEqual(superuser.student_name, '')
+
+    def test_admin_creation_and_change_forms(self):
+        from accounts.forms import CustomUserAdminCreationForm, CustomUserAdminChangeForm
+        form = CustomUserAdminCreationForm({
+            'phone_number': '555222333',
+            'first_name': 'ლევან',
+            'last_name': 'ბერიძე',
+            'email': 'levan@school.ge',
+            'password1': 'AdminPassword123!',
+            'password2': 'AdminPassword123!',
+            'is_staff': True,
+            'is_active': True,
+        })
+        self.assertTrue(form.is_valid(), form.errors)
+        user = form.save()
+        self.assertEqual(user.phone_number, '555222333')
+        self.assertTrue(user.is_staff)
+
+        change_form = CustomUserAdminChangeForm(instance=user)
+        self.assertIn('first_name', change_form.fields)
+        self.assertIn('email', change_form.fields)
+        self.assertIn('student_name', change_form.fields)
+
+

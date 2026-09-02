@@ -12,6 +12,8 @@ class CustomUserManager(BaseUserManager):
         if not phone_number:
             raise ValueError('ტელეფონის ნომერი აუცილებელია.')
         phone_number = str(phone_number).strip()
+        if 'email' in extra_fields and extra_fields['email']:
+            extra_fields['email'] = self.normalize_email(extra_fields['email'])
         user = self.model(phone_number=phone_number, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -20,6 +22,7 @@ class CustomUserManager(BaseUserManager):
     def create_superuser(self, phone_number, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError('Superuser must have is_staff=True.')
@@ -42,6 +45,8 @@ class CustomUser(AbstractUser):
 
     student_name = models.CharField(
         max_length=150,
+        blank=True,
+        default="",
         verbose_name="მოსწავლის სახელი და გვარი"
     )
     phone_number = models.CharField(
@@ -52,23 +57,34 @@ class CustomUser(AbstractUser):
     )
     parent_name = models.CharField(
         max_length=150,
+        blank=True,
+        default="",
         verbose_name="მშობლის სახელი და გვარი"
     )
     grade = models.CharField(
         max_length=10,
         choices=CLASS_CHOICES,
+        blank=True,
+        default="",
         verbose_name="კლასი"
     )
     book_author = models.CharField(
         max_length=150,
+        blank=True,
+        default="",
         verbose_name="წიგნის ავტორი"
     )
 
     USERNAME_FIELD = 'phone_number'
-    REQUIRED_FIELDS = ['student_name', 'parent_name', 'grade', 'book_author']
+    REQUIRED_FIELDS = ['email']
 
     objects = CustomUserManager()
 
     def __str__(self):
-        return f"{self.student_name} ({self.phone_number})"
+        if self.student_name:
+            return f"{self.student_name} ({self.phone_number})"
+        if self.first_name or self.last_name:
+            full = f"{self.first_name} {self.last_name}".strip()
+            return f"{full} ({self.phone_number})"
+        return str(self.phone_number)
 

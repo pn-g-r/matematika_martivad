@@ -5,6 +5,8 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from .models import CustomUser
 
+from django.contrib.auth.forms import ReadOnlyPasswordHashField
+
 PHONE_REGEX = re.compile(r'^\d{9}$')
 PHONE_ERROR_MSG = "ტელეფონის ნომერი უნდა შედგებოდეს ზუსტად 9 ციფრისგან (მაგ: 555111222). სხვა სიმბოლოები დაუშვებელია."
 
@@ -216,3 +218,93 @@ class CustomAuthenticationForm(forms.Form):
 
     def get_user(self):
         return self.user_cache
+
+
+class CustomUserAdminCreationForm(forms.ModelForm):
+    password1 = forms.CharField(
+        label="პაროლი",
+        widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
+        required=True,
+    )
+    password2 = forms.CharField(
+        label="პაროლის დადასტურება",
+        widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
+        required=True,
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = (
+            'phone_number',
+            'first_name',
+            'last_name',
+            'email',
+            'student_name',
+            'parent_name',
+            'grade',
+            'book_author',
+            'is_staff',
+            'is_superuser',
+            'is_active',
+        )
+
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number', '').strip()
+        if not PHONE_REGEX.match(phone):
+            raise ValidationError(PHONE_ERROR_MSG)
+        if CustomUser.objects.filter(phone_number=phone).exists():
+            raise ValidationError("ამ ტელეფონის ნომრით მომხმარებელი უკვე რეგისტრირებულია.")
+        return phone
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get('password1')
+        p2 = cleaned_data.get('password2')
+        if p1 and p2:
+            if p1 != p2:
+                self.add_error('password2', "პაროლები ერთმანეთს არ ემთხვევა.")
+            else:
+                user = CustomUser(
+                    phone_number=cleaned_data.get('phone_number', ''),
+                    email=cleaned_data.get('email', ''),
+                    first_name=cleaned_data.get('first_name', ''),
+                    last_name=cleaned_data.get('last_name', ''),
+                )
+                try:
+                    validate_password(p1, user)
+                except ValidationError as err:
+                    self.add_error('password1', err)
+        return cleaned_data
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.set_password(self.cleaned_data['password1'])
+        if commit:
+            user.save()
+        return user
+
+
+class CustomUserAdminChangeForm(forms.ModelForm):
+    password = ReadOnlyPasswordHashField(
+        label="პაროლი",
+        help_text=(
+            "პაროლები დაშიფრულია (ჰეშირებულია). პაროლის შესაცვლელად გამოიყენეთ "
+            '<a href="../password/">პაროლის შეცვლის ფორმა</a>.'
+        ),
+    )
+
+    class Meta:
+        model = CustomUser
+        fields = '__all__'
+
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number', '').strip()
+        if not PHONE_REGEX.match(phone):
+            raise ValidationError(PHONE_ERROR_MSG)
+        qs = CustomUser.objects.filter(phone_number=phone)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise ValidationError("ამ ტელეფონის ნომრით მომხმარებელი უკვე რეგისტრირებულია.")
+        return phone
+
