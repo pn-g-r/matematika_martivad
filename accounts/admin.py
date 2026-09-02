@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from django.utils.html import format_html
+from django.utils.html import format_html, mark_safe
 from .models import CustomUser
 from .forms import (
     CustomUserCreationForm,
@@ -68,14 +68,14 @@ class CustomUserAdmin(UserAdmin):
     @admin.display(description="როლი")
     def get_role_badge(self, obj):
         if obj.is_superuser:
-            return format_html(
+            return mark_safe(
                 '<span style="background: rgba(192, 132, 252, 0.2); color: #c084fc; border: 1px solid #c084fc; padding: 2px 8px; border-radius: 12px; font-weight: 600; font-size: 11px;">Superuser</span>'
             )
         if obj.is_staff:
-            return format_html(
+            return mark_safe(
                 '<span style="background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid #38bdf8; padding: 2px 8px; border-radius: 12px; font-weight: 600; font-size: 11px;">ადმინი</span>'
             )
-        return format_html(
+        return mark_safe(
             '<span style="background: rgba(74, 222, 128, 0.2); color: #4ade80; border: 1px solid #4ade80; padding: 2px 8px; border-radius: 12px; font-weight: 600; font-size: 11px;">მოსწავლე</span>'
         )
 

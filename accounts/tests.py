@@ -298,6 +298,18 @@ class AccountsAuthTests(TestCase):
         if perm:
             self.assertIn(perm, saved.user_permissions.all())
 
+    def test_admin_changelist_view_renders_correctly(self):
+        superuser = User.objects.create_superuser(
+            username='super_changelist_test',
+            email='super@test.com',
+            password='Password123!',
+        )
+        self.client.force_login(superuser)
+        response = self.client.get('/admin/accounts/customuser/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'super_changelist_test')
+
+
 
 
 
