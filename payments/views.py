@@ -390,8 +390,11 @@ def cancel_subscription_view(request):
             expires_at__gt=now
         ).first()
 
+    next_url = request.POST.get('next') or request.GET.get('next')
     if not active_access:
         messages.warning(request, "აქტიური ავტომატური გამოწერა ვერ მოიძებნა.")
+        if next_url:
+            return redirect(next_url)
         return redirect('payments:pricing')
 
     order = active_access.last_order
@@ -407,6 +410,8 @@ def cancel_subscription_view(request):
         request,
         f"თქვენი გამოწერა წარმატებით გაუქმდა. არსებული წვდომა ძალაში რჩება {active_access.expires_at.strftime('%Y-%m-%d')}-მდე, რის შემდეგაც თანხა აღარ ჩამოგეჭრებათ."
     )
+    if next_url:
+        return redirect(next_url)
     return redirect('payments:pricing')
 
 

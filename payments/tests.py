@@ -384,7 +384,8 @@ class PaymentsWorkflowTests(TestCase):
         # Visiting course_a -> has_access=True
         res_a = self.client.get(reverse('course_detail', kwargs={'pk': course_a.pk}))
         self.assertTrue(res_a.context['has_access'])
-        self.assertContains(res_a, 'სწავლის გაგრძელება')
+        self.assertNotContains(res_a, 'სწავლის გაგრძელება')
+        self.assertContains(res_a, 'სწავლის შეწყვეტა')
 
         # Visiting course_b -> has_access=False (strictly isolated!)
         res_b = self.client.get(reverse('course_detail', kwargs={'pk': course_b.pk}))

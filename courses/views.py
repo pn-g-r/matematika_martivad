@@ -26,20 +26,23 @@ def course_list(request):
 def course_detail(request, pk):
     course = get_object_or_404(Course, pk=pk)
     has_access = False
+    course_access = None
     if request.user.is_authenticated:
         if request.user.is_staff or request.user.is_superuser:
             has_access = True
         else:
             now = timezone.now()
-            has_access = UserCourseAccess.objects.filter(
+            course_access = UserCourseAccess.objects.filter(
                 user=request.user,
                 course=course,
                 is_active=True,
                 expires_at__gt=now
-            ).exists()
+            ).first()
+            has_access = course_access is not None
 
     return render(request, 'courses/course.html', {
         'course': course,
         'has_access': has_access,
+        'course_access': course_access,
     })
 
