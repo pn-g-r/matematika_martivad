@@ -58,26 +58,12 @@
             <span style="color: #f8fafc; font-size: 14px; margin-right: 12px; font-weight: 500;">
               <i class="fa-solid fa-user-graduate" style="color: #38bdf8; margin-right: 6px;"></i>{{ user.student_name|default:user.first_name|default:user.phone_number }}
             </span>
-            {% if paid_course %}
-            <a
-              href="{% if course.id == paid_course.id %}#curriculum-section{% else %}{% url 'course_detail' pk=paid_course.id %}{% endif %}"
-              class="btn primary"
-              style="background: #10b981; border-color: #10b981; margin-right: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);"
-            >
-              <i class="bx bx-play-circle" style="font-size: 18px;"></i>
-              <span>ჩემი გაკვეთილები</span>
-            </a>
-            {% elif has_access %}
-            <a href="#curriculum-section" class="btn primary" style="background: #10b981; border-color: #10b981; margin-right: 8px;">ჩემი გაკვეთილები</a>
-            {% endif %}
             <form action="{% url 'logout' %}" method="post" style="display: inline">
               {% csrf_token %}
               <button type="submit" class="btn primary">გასვლა</button>
             </form>
           {% else %}
-            {% if has_access %}
-              <a href="#curriculum-section" class="btn primary" style="background: #10b981; border-color: #10b981;">ჩემი გაკვეთილები</a>
-            {% else %}
+            {% if not has_access %}
               <a href="{% url 'payments:pricing' %}?course_id={{ course.id }}" class="btn primary">კურსის დაწყება</a>
             {% endif %}
             <a href="{% url 'login' %}?next={{ request.path }}" class="btn primary" style="margin-left: 6px;">შესვლა</a>
