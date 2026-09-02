@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VI კლასის მათემატიკა - მათემატიკა მარტივად</title>
     <!-- Style -->
-    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
-    <link rel="stylesheet" href="{% static 'css/course.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=10.0" />
+    <link rel="stylesheet" href="{% static 'css/course.css' %}?v=10.0" />
     <!-- Font Awesom Icon -->
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -54,7 +54,34 @@
         </ul>
 
         <div class="nav-actions">
-          <a href="#" class="btn primary">უფასო გაკვეთილი</a>
+          {% if user.is_authenticated %}
+            <span style="color: #f8fafc; font-size: 14px; margin-right: 12px; font-weight: 500;">
+              <i class="fa-solid fa-user-graduate" style="color: #38bdf8; margin-right: 6px;"></i>{{ user.student_name|default:user.first_name|default:user.phone_number }}
+            </span>
+            {% if paid_course %}
+            <a
+              href="{% if course.id == paid_course.id %}#curriculum-section{% else %}{% url 'course_detail' pk=paid_course.id %}{% endif %}"
+              class="btn primary"
+              style="background: #10b981; border-color: #10b981; margin-right: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);"
+            >
+              <i class="bx bx-play-circle" style="font-size: 18px;"></i>
+              <span>ჩემი გაკვეთილები</span>
+            </a>
+            {% elif has_access %}
+            <a href="#curriculum-section" class="btn primary" style="background: #10b981; border-color: #10b981; margin-right: 8px;">ჩემი გაკვეთილები</a>
+            {% endif %}
+            <form action="{% url 'logout' %}" method="post" style="display: inline">
+              {% csrf_token %}
+              <button type="submit" class="btn primary">გასვლა</button>
+            </form>
+          {% else %}
+            {% if has_access %}
+              <a href="#curriculum-section" class="btn primary" style="background: #10b981; border-color: #10b981;">ჩემი გაკვეთილები</a>
+            {% else %}
+              <a href="{% url 'payments:pricing' %}?course_id={{ course.id }}" class="btn primary">კურსის დაწყება</a>
+            {% endif %}
+            <a href="{% url 'login' %}?next={{ request.path }}" class="btn primary" style="margin-left: 6px;">შესვლა</a>
+          {% endif %}
           <i class="bx bx-menu hamburger" id="hamburger"></i>
         </div>
       </div>
@@ -111,7 +138,7 @@
         </div>
 
         <!-- CURRICULUM -->
-        <div class="curriculum">
+        <div class="course-curriculum" id="curriculum-section">
           <h2 class="course-section-title">სასწავლო პროგრამა</h2>
 
           <div class="accordion">
@@ -127,15 +154,31 @@
               <div class="accordion-body">
                 <ul class="lesson-list">
                   {% for lesson in chapter.lessons.all %}
-                  <li class="playable-lesson" data-video="{{ lesson.video_url }}" style="padding: 10px; border-radius: 6px; transition: 0.3s; margin-bottom: 2px;">
-                    <div class="lesson-header" style="display: flex; justify-content: space-between; align-items: center; cursor: pointer;">
-                      <div class="left" style="display: flex; align-items: center; gap: 8px;">
-                        <i class="bx {{ lesson.icon }}" style="color: var(--blue);"></i>
-                        <span style="font-size: 14px; font-weight: 500;">{{ lesson.title }}</span>
-                      </div>
-                      <span class="duration" style="font-size: 12px; color: #9ca3af;">{{ lesson.duration }}</span>
-                    </div>
-                  </li>
+                    {% if has_access or forloop.parentloop.first and forloop.first %}
+                      <li class="playable-lesson" data-video="{{ lesson.video_url }}" style="padding: 10px; border-radius: 6px; transition: 0.3s; margin-bottom: 2px; cursor: pointer;">
+                        <div class="lesson-header" style="display: flex; justify-content: space-between; align-items: center;">
+                          <div class="left" style="display: flex; align-items: center; gap: 8px;">
+                            <i class="bx {{ lesson.icon }}" style="color: var(--blue);"></i>
+                            <span style="font-size: 14px; font-weight: 500;">{{ lesson.title }}</span>
+                            {% if not has_access and forloop.parentloop.first and forloop.first %}
+                              <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">უფასო გაკვეთილი</span>
+                            {% endif %}
+                          </div>
+                          <span class="duration" style="font-size: 12px; color: #9ca3af;">{{ lesson.duration }}</span>
+                        </div>
+                      </li>
+                    {% else %}
+                      <li class="locked-lesson" data-title="{{ lesson.title }}" style="padding: 10px; border-radius: 6px; transition: 0.3s; margin-bottom: 2px; cursor: pointer; opacity: 0.75;">
+                        <div class="lesson-header" style="display: flex; justify-content: space-between; align-items: center;">
+                          <div class="left" style="display: flex; align-items: center; gap: 8px;">
+                            <i class="bx bx-lock-alt" style="color: #ef4444;"></i>
+                            <span style="font-size: 14px; font-weight: 500; color: #9ca3af;">{{ lesson.title }}</span>
+                            <span style="background: rgba(239, 68, 68, 0.1); color: #ef4444; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; margin-left: 4px;">დახურულია</span>
+                          </div>
+                          <span class="duration" style="font-size: 12px; color: #9ca3af;"><i class="bx bx-lock-alt"></i></span>
+                        </div>
+                      </li>
+                    {% endif %}
                   {% endfor %}
                 </ul>
               </div>
@@ -176,7 +219,15 @@
           </iframe>
         </div>
 
-        <a href="#" class="btn primary">კურსის დაწყება</a>
+        {% if has_access %}
+          <a href="#curriculum-section" class="btn primary" style="background: #10b981; border-color: #10b981; display: block; text-align: center;">
+            <i class="bx bx-play-circle" style="margin-right: 6px; font-size: 18px; vertical-align: middle;"></i>სწავლის გაგრძელება
+          </a>
+        {% else %}
+          <a href="{% url 'payments:pricing' %}?course_id={{ course.id }}" class="btn primary" style="display: block; text-align: center;">
+            <i class="bx bx-lock-open-alt" style="margin-right: 6px; font-size: 18px; vertical-align: middle;"></i>კურსის დაწყება
+          </a>
+        {% endif %}
 
         <ul class="sidebar-list">
           <li>
@@ -386,6 +437,21 @@
       </div>
     </div>
 
+    <!-- LOCKED LESSON MODAL -->
+    <div id="locked-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 99999; align-items: center; justify-content: center; padding: 20px;">
+      <div style="background: #1e293b; color: #fff; max-width: 460px; width: 100%; border-radius: 20px; padding: 36px 28px; text-align: center; position: relative; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6); border: 1px solid #334155;">
+        <button id="close-locked-modal" style="position: absolute; top: 16px; right: 16px; background: transparent; border: none; color: #94a3b8; font-size: 26px; cursor: pointer; transition: 0.2s;"><i class="bx bx-x"></i></button>
+        <div style="width: 70px; height: 70px; background: rgba(239, 68, 68, 0.15); color: #ef4444; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px auto; font-size: 34px;">
+          <i class="bx bx-lock-alt"></i>
+        </div>
+        <h3 style="font-size: 22px; font-weight: 700; margin-bottom: 10px; color: #fff;">გაკვეთილი დახურულია</h3>
+        <p id="locked-modal-desc" style="font-size: 14px; color: #94a3b8; margin-bottom: 24px; line-height: 1.6;">სრული გაკვეთილების სანახავად საჭიროა კურსის შეძენა ან გამოწერა.</p>
+        <a href="{% url 'payments:pricing' %}?course_id={{ course.id }}" class="btn primary" style="display: block; width: 100%; padding: 14px; font-size: 16px; font-weight: 600; text-align: center; border-radius: 10px; text-decoration: none; box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);">
+          <i class="bx bx-shopping-bag" style="margin-right: 8px;"></i> კურსის დაწყება / ტარიფები
+        </a>
+      </div>
+    </div>
+
     <!-- AOS Js-->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
     <!-- Custom Js-->
@@ -432,14 +498,49 @@
               document.body.style.overflow = 'auto'; // restore scroll
           }
 
-          closeModal.addEventListener('click', closeVideoModal);
+          if (closeModal) closeModal.addEventListener('click', closeVideoModal);
 
           // Close on clicking outside the video player
-          videoModal.addEventListener('click', function(e) {
-              if (e.target === videoModal) {
-                  closeVideoModal();
-              }
+          if (videoModal) {
+              videoModal.addEventListener('click', function(e) {
+                  if (e.target === videoModal) {
+                      closeVideoModal();
+                  }
+              });
+          }
+
+          // Locked lesson handler
+          const lockedItems = document.querySelectorAll('.locked-lesson');
+          const lockedModal = document.getElementById('locked-modal');
+          const closeLockedModal = document.getElementById('close-locked-modal');
+          const lockedDesc = document.getElementById('locked-modal-desc');
+
+          lockedItems.forEach(item => {
+              item.addEventListener('click', function() {
+                  const title = this.getAttribute('data-title');
+                  if (title && lockedDesc) {
+                      lockedDesc.textContent = `გაკვეთილის „${title}“ და სრული მასალის სანახავად დაიწყეთ კურსი.`;
+                  }
+                  if (lockedModal) {
+                      lockedModal.style.display = 'flex';
+                      document.body.style.overflow = 'hidden';
+                  }
+              });
           });
+
+          function hideLockedModal() {
+              if (lockedModal) {
+                  lockedModal.style.display = 'none';
+                  document.body.style.overflow = 'auto';
+              }
+          }
+
+          if (closeLockedModal) closeLockedModal.addEventListener('click', hideLockedModal);
+          if (lockedModal) {
+              lockedModal.addEventListener('click', function(e) {
+                  if (e.target === lockedModal) hideLockedModal();
+              });
+          }
       });
     </script>
   </body>

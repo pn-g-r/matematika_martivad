@@ -328,13 +328,26 @@
   color: #64748b;
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1280px) {
+  .course-hero {
+    padding: 60px 0 40px;
+  }
+  .course-hero h1 {
+    font-size: 32px;
+  }
   .course-container {
     flex-direction: column;
+    gap: 35px;
+    margin-top: 35px;
   }
   .course-sidebar {
     width: 100%;
     position: static;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+  .course-main {
+    width: 100%;
   }
   .what-you-learn ul {
     grid-template-columns: 1fr;

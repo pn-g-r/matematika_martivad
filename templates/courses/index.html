@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>მათემატიკა მარტივად</title>
     <!-- Style -->
-    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=10.0" />
     <!-- Font Awesom Icon -->
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -27,6 +27,237 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
     />
+    <style>
+      /* Trigger mobile-proven vertical flow early for all tablets and medium screens */
+      @media (max-width: 1300px) {
+        .hamburger {
+          display: block !important;
+          color: #f8fafc !important;
+          font-size: 28px !important;
+          cursor: pointer !important;
+        }
+        .menu {
+          position: absolute !important;
+          top: 100% !important;
+          left: 0 !important;
+          width: 100% !important;
+          background: #0f172a !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          display: none !important;
+          padding: 20px 0 !important;
+          z-index: 9999 !important;
+          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4) !important;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+        }
+        .menu.active {
+          display: flex !important;
+        }
+        .menu li {
+          margin: 10px 0 !important;
+        }
+        .menu li a {
+          font-size: 16px !important;
+          color: #f8fafc !important;
+        }
+
+        /* Hero: Clean, non-overlapping vertical flow */
+        .hero {
+          padding: 50px 0 80px !important;
+          overflow: hidden !important;
+        }
+        .hero-flex {
+          flex-direction: column !important;
+          text-align: center !important;
+          align-items: center !important;
+          gap: 30px !important;
+        }
+        .hero-text {
+          width: 100% !important;
+          max-width: 700px !important;
+          margin: 0 auto !important;
+          position: relative !important;
+          z-index: 5 !important;
+        }
+        .hero-text h1 {
+          font-size: clamp(28px, 4.2vw, 42px) !important;
+          line-height: 1.25 !important;
+        }
+        .hero-text p {
+          font-size: 16px !important;
+          max-width: 580px !important;
+          margin: 0 auto 25px !important;
+        }
+        .buttons {
+          justify-content: center !important;
+          gap: 15px !important;
+        }
+        .rating {
+          justify-content: center !important;
+        }
+        .hero-image {
+          width: 100% !important;
+          max-width: 360px !important;
+          margin: 10px auto 0 !important;
+          position: relative !important;
+          height: auto !important;
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+        }
+        .image-bg {
+          position: relative !important;
+          width: 320px !important;
+          height: 320px !important;
+          margin: 0 auto !important;
+          left: auto !important;
+          right: auto !important;
+          top: auto !important;
+          transform: none !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          border-radius: 40px !important;
+        }
+        .image-bg::before {
+          content: "" !important;
+          position: absolute !important;
+          top: 50% !important;
+          left: 50% !important;
+          width: 300px !important;
+          height: 300px !important;
+          aspect-ratio: 1 / 1 !important;
+          padding: 0 !important;
+          background: linear-gradient(135deg, #38bdf8 0%, #4f46e5 100%) !important;
+          border-radius: 50% !important;
+          z-index: -1 !important;
+          box-shadow: 0 0 35px rgba(56, 189, 248, 0.4) !important;
+          animation: pulseBubble 3s ease-in-out infinite alternate !important;
+        }
+        .hero-image img.student-img {
+          max-width: 100% !important;
+          max-height: 100% !important;
+          object-fit: contain !important;
+          height: auto !important;
+          display: block !important;
+          position: relative !important;
+          z-index: 2 !important;
+        }
+        .hero-image .img-rotate,
+        .hero-image .heroIcon3,
+        img.img-rotate,
+        img.heroIcon3,
+        .d-desktop-only {
+          display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          width: 0 !important;
+          height: 0 !important;
+          pointer-events: none !important;
+        }
+      }
+      /* Tablet Stats: 3 Balanced Columns */
+      @media (min-width: 769px) and (max-width: 1300px) {
+        .stats-wrapper {
+          display: grid !important;
+          grid-template-columns: repeat(3, 1fr) !important;
+          gap: 20px !important;
+          align-items: center !important;
+          justify-items: center !important;
+          max-width: 960px !important;
+          margin: 40px auto -50px !important;
+          padding: 25px 20px !important;
+        }
+        .stat-item {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          gap: 15px !important;
+        }
+        .stat-text h2 {
+          font-size: 24px !important;
+          text-align: left !important;
+        }
+        .stat-text p {
+          font-size: 12px !important;
+          text-align: left !important;
+          white-space: nowrap !important;
+        }
+      }
+      /* Mobile & Small Screen Stats: Perfectly Vertically Aligned Stack */
+      @media (max-width: 768px) {
+        .stats-wrapper {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: center !important;
+          gap: 20px !important;
+          padding: 25px 20px !important;
+          max-width: 440px !important;
+          margin: 30px auto -30px !important;
+        }
+        .stat-item {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: flex-start !important;
+          width: 250px !important;
+          gap: 18px !important;
+          margin: 0 auto !important;
+        }
+        .icon-box {
+          flex-shrink: 0 !important;
+          width: 52px !important;
+          height: 52px !important;
+        }
+        .stat-text {
+          text-align: left !important;
+        }
+        .stat-text h2 {
+          font-size: 26px !important;
+          text-align: left !important;
+          line-height: 1.1 !important;
+          margin: 0 !important;
+        }
+        .stat-text p {
+          font-size: 13px !important;
+          text-align: left !important;
+          margin: 2px 0 0 0 !important;
+          white-space: nowrap !important;
+        }
+      }
+      @media (max-width: 480px) {
+        .image-bg {
+          width: 250px !important;
+          height: 250px !important;
+        }
+        .image-bg::before {
+          width: 230px !important;
+          height: 230px !important;
+          aspect-ratio: 1 / 1 !important;
+          padding: 0 !important;
+        }
+      }
+      /* Keep course cards compact and square across all devices */
+      .course-grid {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        justify-content: center !important;
+        gap: 25px !important;
+      }
+      .course-card {
+        flex: 0 1 320px !important;
+        max-width: 340px !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+        margin: 0 !important;
+      }
+      .course-card img {
+        width: 100% !important;
+        aspect-ratio: 1 / 1 !important;
+        height: auto !important;
+        object-fit: cover !important;
+        border-radius: 8px !important;
+      }
+    </style>
   </head>
   <body>
     <!-- HEADER -->
@@ -50,6 +281,16 @@
           <span style="color: #f8fafc; font-size: 14px; margin-right: 12px; font-weight: 500;">
             <i class="fa-solid fa-user-graduate" style="color: #38bdf8; margin-right: 6px;"></i>{{ user.student_name|default:user.first_name|default:user.phone_number }}
           </span>
+          {% if paid_course %}
+          <a
+            href="{% url 'course_detail' pk=paid_course.id %}"
+            class="btn primary"
+            style="background: #10b981; border-color: #10b981; margin-right: 8px; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);"
+          >
+            <i class="bx bx-play-circle" style="font-size: 18px;"></i>
+            <span>ჩემი გაკვეთილები</span>
+          </a>
+          {% endif %}
           <form
             action="{% url 'logout' %}"
             method="post"
@@ -84,8 +325,7 @@
           </p>
 
           <div class="buttons">
-            <a href="{% url 'payments:pricing' %}" class="btn primary">შემოგვიერთდით</a>
-            <a href="{% url 'payments:pricing' %}" class="btn outline">ტარიფები და ფასები</a>
+            <a href="#courses-section" class="btn primary">შემოგვიერთდით</a>
           </div>
 
           <div class="rating">
@@ -106,23 +346,10 @@
 
         <!-- RIGHT -->
         <div class="hero-image" data-aos="fade-right">
-          <img src="{% static 'image/heroIcon1.png' %}" class="img-rotate" />
-          <img src="{% static 'image/heroIcon3.png' %}" class="heroIcon3" />
           <div class="image-bg">
-            <img src="{% static 'image/heroImage.png' %}" alt="Student" />
-          </div>
-
-          <!-- Floating Card -->
-          <div class="instructor-card">
-            <div class="avatars">
-              <img src="{% static 'image/t1.jpg' %}" />
-              <img src="{% static 'image/t2.jpg' %}" />
-              <img src="{% static 'image/t3.jpg' %}" />
-            </div>
-            <div>
-              <strong>1000+</strong>
-              <span>ვიდეო გაკვეთილი</span>
-            </div>
+            <img src="{% static 'image/heroIcon1.png' %}" class="img-rotate d-desktop-only" alt="Top Left Floating Icon" />
+            <img src="{% static 'image/heroIcon3.png' %}" class="heroIcon3 d-desktop-only" alt="Bottom Right Floating Icon" />
+            <img src="{% static 'image/heroImage.png' %}" alt="Student" class="student-img" />
           </div>
         </div>
       </div>
@@ -552,7 +779,7 @@
               <li><i class="fa fa-check"></i> პირადი პროგრესის კონტროლი</li>
             </ul>
 
-            <button class="btn outline">შემოგვიერთდი</button>
+            <a href="{% url 'payments:pricing' %}" class="btn outline" style="display: block; text-align: center; text-decoration: none;">შემოგვიერთდი</a>
           </div>
 
           <!-- Yearly (Active) -->
@@ -607,7 +834,7 @@
               <li><i class="fa fa-check"></i> დაზოგე 100 ლარი</li>
             </ul>
 
-            <button class="btn primary">შემოგვიერთდი</button>
+            <a href="{% url 'payments:pricing' %}" class="btn primary" style="display: block; text-align: center; text-decoration: none;">შემოგვიერთდი</a>
           </div>
         </div>
       </div>

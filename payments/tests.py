@@ -5,7 +5,8 @@ from django.urls import reverse
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
-from .models import PaymentOrder, UserSubscriptionAccess, PlanType, OrderStatus
+from .models import PaymentOrder, UserCourseAccess, PlanType, OrderStatus
+from courses.models import Course, Chapter, Lesson
 from .flitt_service import generate_flitt_signature, verify_flitt_signature, FlittPaymentClient
 
 User = get_user_model()
@@ -62,6 +63,17 @@ class FlittSignatureTests(TestCase):
 class PaymentsWorkflowTests(TestCase):
     def setUp(self):
         self.client = Client()
+        self.course = Course.objects.create(
+            title='VI კლასის მათემატიკა',
+            grade='VI',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+        )
         self.user = User.objects.create_user(
             username='555111222',
             phone_number='555111222',
@@ -98,7 +110,7 @@ class PaymentsWorkflowTests(TestCase):
         order = PaymentOrder.objects.filter(user=self.user, plan_type=PlanType.MONTHLY).first()
         self.assertIsNotNone(order)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('payments:checkout_pay', kwargs={'order_id': order.order_id}))
+        self.assertEqual(response.url, 'https://pay.flitt.com/checkout/mock_token_123')
 
         self.assertEqual(order.amount_gel, Decimal('50.00'))
         self.assertEqual(order.amount_tetri, 5000)
@@ -106,11 +118,10 @@ class PaymentsWorkflowTests(TestCase):
         self.assertEqual(order.status, OrderStatus.PROCESSING)
         self.assertEqual(order.payment_token, 'mock_token_123')
 
-        # Test embedded pay page
+        # Test direct redirect fallback on pay URL
         pay_res = self.client.get(reverse('payments:checkout_pay', kwargs={'order_id': order.order_id}))
-        self.assertEqual(pay_res.status_code, 200)
-        self.assertContains(pay_res, 'flitt-checkout-frame')
-        self.assertContains(pay_res, 'https://pay.flitt.com/checkout/mock_token_123')
+        self.assertEqual(pay_res.status_code, 302)
+        self.assertEqual(pay_res.url, 'https://pay.flitt.com/checkout/mock_token_123')
 
     @patch.object(FlittPaymentClient, 'create_checkout_session')
     def test_checkout_init_yearly_onetime(self, mock_flitt):
@@ -125,13 +136,18 @@ class PaymentsWorkflowTests(TestCase):
         order = PaymentOrder.objects.filter(user=self.user, plan_type=PlanType.YEARLY).first()
         self.assertIsNotNone(order)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse('payments:checkout_pay', kwargs={'order_id': order.order_id}))
+        self.assertEqual(response.url, 'https://pay.flitt.com/checkout/mock_token_year_456')
 
         self.assertEqual(order.amount_gel, Decimal('400.00'))
         self.assertEqual(order.amount_tetri, 40000)
         self.assertFalse(order.is_subscription)
         self.assertEqual(order.status, OrderStatus.PROCESSING)
         self.assertEqual(order.payment_token, 'mock_token_year_456')
+
+        # Test direct redirect fallback on pay URL
+        pay_res = self.client.get(reverse('payments:checkout_pay', kwargs={'order_id': order.order_id}))
+        self.assertEqual(pay_res.status_code, 302)
+        self.assertEqual(pay_res.url, 'https://pay.flitt.com/checkout/mock_token_year_456')
 
     def test_callback_with_invalid_signature_rejected(self):
         payload = {
@@ -151,6 +167,7 @@ class PaymentsWorkflowTests(TestCase):
         order = PaymentOrder.objects.create(
             order_id='MM_SUB_123456',
             user=self.user,
+            course=self.course,
             plan_type=PlanType.MONTHLY,
             amount_gel=Decimal('50.00'),
             amount_tetri=5000,
@@ -186,7 +203,7 @@ class PaymentsWorkflowTests(TestCase):
         self.assertEqual(order.flitt_payment_id, '888777666')
         self.assertEqual(order.masked_card, '444455XXXXXX1111')
 
-        access = UserSubscriptionAccess.objects.get(user=self.user)
+        access = UserCourseAccess.objects.get(user=self.user, course=self.course)
         self.assertTrue(access.is_active)
         self.assertTrue(access.is_valid_now())
         self.assertEqual(access.plan_type, PlanType.MONTHLY)
@@ -197,6 +214,7 @@ class PaymentsWorkflowTests(TestCase):
         order = PaymentOrder.objects.create(
             order_id='MM_YEAR_987654',
             user=self.user,
+            course=self.course,
             plan_type=PlanType.YEARLY,
             amount_gel=Decimal('400.00'),
             amount_tetri=40000,
@@ -229,7 +247,7 @@ class PaymentsWorkflowTests(TestCase):
         order.refresh_from_db()
         self.assertEqual(order.status, OrderStatus.APPROVED)
 
-        access = UserSubscriptionAccess.objects.get(user=self.user)
+        access = UserCourseAccess.objects.get(user=self.user, course=self.course)
         self.assertTrue(access.is_valid_now())
         self.assertEqual(access.plan_type, PlanType.YEARLY)
         self.assertTrue(access.expires_at > timezone.now() + timedelta(days=360))
@@ -248,4 +266,343 @@ class PaymentsWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'გადახდა წარმატებულია')
         self.assertContains(response, order.order_id)
+
+    @patch.object(FlittPaymentClient, 'create_checkout_session')
+    def test_course_specific_checkout_and_callback_grant(self, mock_flitt):
+        mock_flitt.return_value = {
+            'response_status': 'success',
+            'checkout_url': 'https://pay.flitt.com/checkout/mock_course_token',
+            'payment_token': 'mock_course_token',
+        }
+        course_a = Course.objects.create(
+            title='VI კლასის მათემატიკა',
+            grade='VI',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+        )
+        course_b = Course.objects.create(
+            title='VII კლასის მათემატიკა',
+            grade='VII',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+        )
+
+        self.client.force_login(self.user)
+        # 1. Checkout init with course_id
+        response = self.client.get(
+            reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}) + f'?course_id={course_a.id}'
+        )
+        self.assertEqual(response.status_code, 302)
+        order = PaymentOrder.objects.filter(user=self.user, course=course_a).first()
+        self.assertIsNotNone(order)
+        self.assertEqual(order.course, course_a)
+        self.assertTrue(order.order_id.startswith(f"MM_C{course_a.id}_SUB"))
+        self.assertTrue(course_a.title in order.order_desc)
+
+        # 2. Flitt callback approving order for Course A
+        callback_params = {
+            'order_id': order.order_id,
+            'merchant_id': 1549901,
+            'amount': '5000',
+            'currency': 'GEL',
+            'order_status': 'approved',
+            'response_status': 'success',
+            'rectoken': 'rec_course_token_xyz',
+        }
+        sig = generate_flitt_signature(callback_params, secret_key='test')
+        callback_params['signature'] = sig
+
+        res = self.client.post(
+            reverse('payments:flitt_callback'),
+            data=callback_params,
+            content_type='application/json'
+        )
+        self.assertEqual(res.status_code, 200)
+
+        # 3. Verify user has access to Course A, but NOT Course B
+        access_a = UserCourseAccess.objects.filter(user=self.user, course=course_a).first()
+        self.assertIsNotNone(access_a)
+        self.assertTrue(access_a.is_valid_now())
+        self.assertEqual(access_a.rectoken, 'rec_course_token_xyz')
+
+        access_b = UserCourseAccess.objects.filter(user=self.user, course=course_b).first()
+        self.assertIsNone(access_b)
+
+    def test_course_detail_paywall_view(self):
+        course_a = Course.objects.create(
+            title='VI კლასის მათემატიკა',
+            grade='VI',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+        )
+        course_b = Course.objects.create(
+            title='VII კლასის მათემატიკა',
+            grade='VII',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+        )
+
+        # Unauthenticated user visiting course_a -> has_access=False
+        res = self.client.get(reverse('course_detail', kwargs={'pk': course_a.pk}))
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.context['has_access'])
+        self.assertContains(res, 'კურსის დაწყება')
+
+        # Authenticated user without payment visiting course_a -> has_access=False
+        self.client.force_login(self.user)
+        res = self.client.get(reverse('course_detail', kwargs={'pk': course_a.pk}))
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.context['has_access'])
+
+        # Grant access to course_a
+        UserCourseAccess.grant_or_renew_access(
+            user=self.user,
+            course=course_a,
+            plan_type=PlanType.MONTHLY
+        )
+
+        # Visiting course_a -> has_access=True
+        res_a = self.client.get(reverse('course_detail', kwargs={'pk': course_a.pk}))
+        self.assertTrue(res_a.context['has_access'])
+        self.assertContains(res_a, 'სწავლის გაგრძელება')
+
+        # Visiting course_b -> has_access=False (strictly isolated!)
+        res_b = self.client.get(reverse('course_detail', kwargs={'pk': course_b.pk}))
+        self.assertFalse(res_b.context['has_access'])
+        self.assertContains(res_b, 'კურსის დაწყება')
+
+    def test_paid_student_navigation_elements(self):
+        course = Course.objects.create(
+            title='VI კლასის მათემატიკა',
+            grade='VI',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+        )
+
+        # 1. Anonymous user: no button, no green line
+        res = self.client.get(reverse('home'))
+        self.assertNotContains(res, 'ჩემი გაკვეთილები')
+        self.assertNotContains(res, 'განაგრძეთ მეცადინეობა')
+
+        # 2. Logged in unpaid student: no button, no green line
+        self.client.force_login(self.user)
+        res = self.client.get(reverse('home'))
+        self.assertNotContains(res, 'ჩემი გაკვეთილები')
+        self.assertNotContains(res, 'განაგრძეთ მეცადინეობა')
+
+        # 3. Staff / Admin user: excluded per business requirements
+        admin_user = User.objects.create_user(
+            username='admin_test',
+            phone_number='555999000',
+            password='Password123!',
+            is_staff=True,
+        )
+        UserCourseAccess.grant_or_renew_access(user=admin_user, course=course, plan_type=PlanType.MONTHLY)
+        self.client.force_login(admin_user)
+        res = self.client.get(reverse('home'))
+        self.assertNotContains(res, 'ჩემი გაკვეთილები')
+        self.assertNotContains(res, 'განაგრძეთ მეცადინეობა')
+
+        # 4. Regular paid student: has 'ჩემი გაკვეთილები' button near logout
+        UserCourseAccess.grant_or_renew_access(user=self.user, course=course, plan_type=PlanType.MONTHLY)
+        self.client.force_login(self.user)
+        res = self.client.get(reverse('home'))
+        self.assertContains(res, 'ჩემი გაკვეთილები')
+        self.assertNotContains(res, 'განაგრძეთ მეცადინეობა')
+        self.assertContains(res, reverse('course_detail', kwargs={'pk': course.id}))
+
+    def test_callback_idempotency_does_not_double_access_duration(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_IDEMPOTENT_001',
+            user=self.user,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.PROCESSING,
+        )
+        callback_params = {
+            'order_id': order.order_id,
+            'merchant_id': 1549901,
+            'amount': '5000',
+            'currency': 'GEL',
+            'order_status': 'approved',
+            'response_status': 'success',
+            'payment_id': 12345678,
+            'rectoken': 'rec_token_idem',
+        }
+        callback_params['signature'] = generate_flitt_signature(callback_params, secret_key='test')
+
+        # 1. First callback delivery: should approve order and grant 30 days
+        res1 = self.client.post(reverse('payments:flitt_callback'), data=callback_params, content_type='application/json')
+        self.assertEqual(res1.status_code, 200)
+        access = UserCourseAccess.objects.get(user=self.user, course=self.course)
+        initial_expiry = access.expires_at
+
+        # 2. Duplicate callback delivery: should return 200 OK but NOT extend expiry again
+        res2 = self.client.post(reverse('payments:flitt_callback'), data=callback_params, content_type='application/json')
+        self.assertEqual(res2.status_code, 200)
+        access.refresh_from_db()
+        self.assertEqual(access.expires_at, initial_expiry)
+
+    def test_course_access_grants_course_detail_permission(self):
+        course = Course.objects.create(
+            title='VIII კლასის მათემატიკა',
+            grade='VIII',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+        )
+        # Grant course-specific access
+        UserCourseAccess.grant_or_renew_access(
+            user=self.user,
+            course=course,
+            plan_type=PlanType.MONTHLY,
+        )
+        self.client.force_login(self.user)
+        res = self.client.get(reverse('course_detail', kwargs={'pk': course.pk}))
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(res.context['has_access'])
+
+    def test_recurring_callback_with_parent_order_id(self):
+        initial_order = PaymentOrder.objects.create(
+            order_id='MM_PARENT_ORIGINAL_001',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.APPROVED,
+        )
+        # Set up current access that expires in 2 days
+        access = UserCourseAccess.objects.create(
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=True,
+            starts_at=timezone.now() - timedelta(days=28),
+            expires_at=timezone.now() + timedelta(days=2),
+            last_order=initial_order,
+        )
+        old_expiry = access.expires_at
+
+        # Webhook for Month 2 recurring charge
+        child_params = {
+            'order_id': 'FLITT_REC_CHILD_9999',
+            'parent_order_id': initial_order.order_id,
+            'merchant_id': 1549901,
+            'amount': '5000',
+            'currency': 'GEL',
+            'order_status': 'approved',
+            'response_status': 'success',
+            'payment_id': 999888777,
+        }
+        child_params['signature'] = generate_flitt_signature(child_params, secret_key='test')
+
+        res = self.client.post(reverse('payments:flitt_callback'), data=child_params, content_type='application/json')
+        self.assertEqual(res.status_code, 200)
+
+        # Renewal order created
+        renewal_order = PaymentOrder.objects.filter(order_id='FLITT_REC_CHILD_9999').first()
+        self.assertIsNotNone(renewal_order)
+        self.assertEqual(renewal_order.status, OrderStatus.APPROVED)
+
+        # Access extended by 30 days from old_expiry
+        access.refresh_from_db()
+        self.assertAlmostEqual(access.expires_at.timestamp(), (old_expiry + timedelta(days=30)).timestamp(), delta=5)
+
+    @patch.object(FlittPaymentClient, 'cancel_subscription')
+    def test_cancel_subscription_view(self, mock_cancel):
+        mock_cancel.return_value = {'response_status': 'success', 'status': 'disabled'}
+        order = PaymentOrder.objects.create(
+            order_id='MM_SUB_TO_CANCEL',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.APPROVED,
+        )
+        access = UserCourseAccess.objects.create(
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=True,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+            last_order=order,
+        )
+        self.client.force_login(self.user)
+        res = self.client.post(reverse('payments:cancel_subscription'), data={'course_id': self.course.id})
+        self.assertEqual(res.status_code, 302)
+        mock_cancel.assert_called_once_with('MM_SUB_TO_CANCEL')
+        access.refresh_from_db()
+        self.assertFalse(access.auto_renew)
+        self.assertTrue(access.is_active)
+        self.assertTrue(access.is_valid_now())
+
+    def test_form_urlencoded_callback_parsing(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_FORM_ENCODED_001',
+            user=self.user,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.PROCESSING,
+        )
+        params = {
+            'order_id': order.order_id,
+            'merchant_id': 1549901,
+            'amount': '5000',
+            'currency': 'GEL',
+            'order_status': 'approved',
+            'response_status': 'success',
+        }
+        params['signature'] = generate_flitt_signature(params, secret_key='test')
+
+        res = self.client.post(reverse('payments:flitt_callback'), data=params)
+        self.assertEqual(res.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.APPROVED)
+
+
+
 

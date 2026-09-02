@@ -29,6 +29,14 @@ class PaymentOrder(models.Model):
         related_name='payment_orders',
         verbose_name="მომხმარებელი"
     )
+    course = models.ForeignKey(
+        'courses.Course',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='payment_orders',
+        verbose_name="არჩეული კურსი"
+    )
     plan_type = models.CharField(
         max_length=20,
         choices=PlanType.choices,
@@ -136,12 +144,18 @@ class PaymentOrder(models.Model):
         return f"{prefix}_{int(timezone.now().timestamp())}_{unique_token}"
 
 
-class UserSubscriptionAccess(models.Model):
-    user = models.OneToOneField(
+class UserCourseAccess(models.Model):
+    user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name='subscription_access',
+        related_name='course_accesses',
         verbose_name="მომხმარებელი"
+    )
+    course = models.ForeignKey(
+        'courses.Course',
+        on_delete=models.CASCADE,
+        related_name='user_accesses',
+        verbose_name="კურსი"
     )
     plan_type = models.CharField(
         max_length=20,
@@ -187,23 +201,25 @@ class UserSubscriptionAccess(models.Model):
     )
 
     class Meta:
-        verbose_name = "მომხმარებლის წვდომა / გამოწერა"
-        verbose_name_plural = "მომხმარებლების წვდომები / გამოწერები"
+        unique_together = ('user', 'course')
+        verbose_name = "კურსის წვდომა"
+        verbose_name_plural = "კურსების წვდომები"
 
     def __str__(self):
         active_str = "აქტიური" if self.is_valid_now() else "ვადაგასული"
-        return f"{self.user} - {self.get_plan_type_display()} ({active_str} {self.expires_at.strftime('%Y-%m-%d')})"
+        return f"{self.user} - {self.course.title} ({self.get_plan_type_display()}) [{active_str}]"
 
     def is_valid_now(self):
         return self.is_active and self.expires_at > timezone.now()
 
     @classmethod
-    def grant_or_renew_access(cls, user, plan_type, payment_order=None, rectoken=""):
+    def grant_or_renew_access(cls, user, course, plan_type, payment_order=None, rectoken=""):
         now = timezone.now()
         duration_days = 30 if plan_type == PlanType.MONTHLY else 365
 
         access, created = cls.objects.get_or_create(
             user=user,
+            course=course,
             defaults={
                 'plan_type': plan_type,
                 'is_active': True,
@@ -216,7 +232,6 @@ class UserSubscriptionAccess(models.Model):
         )
 
         if not created:
-            # If current active subscription is still valid, extend from current expiry
             if access.is_valid_now():
                 access.expires_at = access.expires_at + timedelta(days=duration_days)
             else:
@@ -234,4 +249,5 @@ class UserSubscriptionAccess(models.Model):
             access.save()
 
         return access
+
 

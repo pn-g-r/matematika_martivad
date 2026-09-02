@@ -9,4 +9,6 @@ urlpatterns = [
     path('pay/<str:order_id>/', views.checkout_pay_view, name='checkout_pay'),
     path('callback/', views.flitt_callback_view, name='flitt_callback'),
     path('response/', views.payment_response_view, name='payment_response'),
+    path('cancel-subscription/', views.cancel_subscription_view, name='cancel_subscription'),
 ]
+

@@ -201,9 +201,16 @@
       <div class="container">
         <div class="pricing-header">
           <h1>აირჩიეთ სასურველი პაკეტი</h1>
+          {% if selected_course %}
+          <div style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); border-radius: 12px; padding: 14px 20px; max-width: 500px; margin: 15px auto 0 auto; display: flex; align-items: center; justify-content: center; gap: 10px;">
+            <i class="fa-solid fa-graduation-cap" style="color: #38bdf8; font-size: 20px;"></i>
+            <span style="font-size: 16px; font-weight: 600; color: #f8fafc;">არჩეული კურსი: <strong style="color: #38bdf8;">{{ selected_course.title }}</strong></span>
+          </div>
+          {% else %}
           <p>
-            მიიღეთ შეუზღუდავი წვდომა IV-IX კლასის ყველა ვიდეო-გაკვეთილზე, ამოცანის დეტალურ ამოხსნასა და დამატებით მასალებზე.
+            მიიღეთ შეუზღუდავი წვდომა სასურველი კურსის ყველა ვიდეო-გაკვეთილზე, ამოცანის დეტალურ ამოხსნასა და დამატებით მასალებზე.
           </p>
+          {% endif %}
         </div>
 
         {% if messages %}
@@ -216,12 +223,31 @@
         </div>
         {% endif %}
 
-        {% if user_access and user_access.is_valid_now %}
+        {% if selected_course and course_access and course_access.is_valid_now %}
         <div class="current-access-alert">
           <i class="fa-solid fa-circle-check" style="font-size: 24px;"></i>
-          <div>
-            <strong>თქვენ გაქვთ აქტიური წვდომა!</strong><br />
-            პაკეტი: <strong>{{ user_access.get_plan_type_display }}</strong> | მოქმედებს: <strong>{{ user_access.expires_at|date:"Y-m-d" }}</strong>-მდე.
+          <div style="flex: 1;">
+            <strong>თქვენ გაქვთ აქტიური წვდომა ამ კურსზე!</strong><br />
+            კურსი: <strong>{{ selected_course.title }}</strong> | პაკეტი: <strong>{{ course_access.get_plan_type_display }}</strong> | მოქმედებს: <strong>{{ course_access.expires_at|date:"Y-m-d" }}</strong>-მდე.
+            {% if course_access.auto_renew %}
+            <span style="display: block; font-size: 13px; color: #38bdf8; margin-top: 4px;">
+              <i class="fa-solid fa-repeat"></i> ავტომატური ყოველთვიური განახლება ჩართულია.
+            </span>
+            {% else %}
+            <span style="display: block; font-size: 13px; color: #fbbf24; margin-top: 4px;">
+              <i class="fa-solid fa-ban"></i> ავტომატური განახლება გაუქმებულია (ვადა ამოიწურება {{ course_access.expires_at|date:"Y-m-d" }}-ში).
+            </span>
+            {% endif %}
+          </div>
+          <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <a href="{% url 'course_detail' pk=selected_course.id %}" style="background: #22c55e; color: #0f172a; padding: 10px 18px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 14px; white-space: nowrap;">კურსზე გადასვლა →</a>
+            {% if course_access.auto_renew %}
+            <form action="{% url 'payments:cancel_subscription' %}" method="post" onsubmit="return confirm('დარწმუნებული ხართ, რომ გსურთ ავტომატური გამოწერის გაუქმება? არსებული წვდომა დარჩება ვადის ამოწურვამდე, ხოლო თანხა აღარ ჩამოგეჭრებათ.');" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="course_id" value="{{ selected_course.id }}">
+              <button type="submit" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.5); padding: 10px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer;">გამოწერის გაუქმება</button>
+            </form>
+            {% endif %}
           </div>
         </div>
         {% endif %}
@@ -242,14 +268,14 @@
               </div>
 
               <ul class="plan-features">
-                <li><i class="fa-solid fa-check"></i> სრული წვდომა ყველა კლასის მასალაზე (IV - IX)</li>
+                <li><i class="fa-solid fa-check"></i> {% if selected_course %}სრული წვდომა კურსზე: <strong>{{ selected_course.title }}</strong>{% else %}სრული წვდომა არჩეულ კურსზე{% endif %}</li>
                 <li><i class="fa-solid fa-check"></i> ყველა ვიდეო-გაკვეთილი და ამოხსნა</li>
                 <li><i class="fa-solid fa-check"></i> ავტომატური ყოველთვიური ჩამოჭრა</li>
                 <li><i class="fa-solid fa-check"></i> გაუქმება ნებისმიერ დროს</li>
               </ul>
             </div>
 
-            <a href="{% url 'payments:checkout_init' plan_type='monthly' %}" class="btn-subscribe primary-blue">
+            <a href="{% url 'payments:checkout_init' plan_type='monthly' %}{% if selected_course %}?course_id={{ selected_course.id }}{% endif %}" class="btn-subscribe primary-blue">
               <i class="fa-solid fa-credit-card" style="margin-right: 8px;"></i> გამოწერა (50 ₾)
             </a>
           </div>
@@ -270,14 +296,14 @@
 
               <ul class="plan-features">
                 <li><i class="fa-solid fa-check"></i> <strong>1 წლიანი შეუზღუდავი წვდომა</strong></li>
-                <li><i class="fa-solid fa-check"></i> ყველა კლასი (IV - IX) და განახლებები</li>
+                <li><i class="fa-solid fa-check"></i> {% if selected_course %}კურსი: <strong>{{ selected_course.title }}</strong>{% else %}არჩეული კურსის ყველა მასალა{% endif %}</li>
                 <li><i class="fa-solid fa-check"></i> <strong>დაზოგეთ 200 ლარი</strong> წლიურად</li>
                 <li><i class="fa-solid fa-check"></i> ერთჯერადი გადახდა (გამოწერის გარეშე)</li>
                 <li><i class="fa-solid fa-check"></i> პრიორიტეტული მხარდაჭერა</li>
               </ul>
             </div>
 
-            <a href="{% url 'payments:checkout_init' plan_type='yearly' %}" class="btn-subscribe primary-gold">
+            <a href="{% url 'payments:checkout_init' plan_type='yearly' %}{% if selected_course %}?course_id={{ selected_course.id }}{% endif %}" class="btn-subscribe primary-gold">
               <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> შეძენა (400 ₾)
             </a>
           </div>

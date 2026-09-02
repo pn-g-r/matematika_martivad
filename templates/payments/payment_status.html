@@ -130,7 +130,11 @@
         </div>
         <h2 class="status-title">გადახდა წარმატებულია!</h2>
         <p class="status-desc">
-          გილოცავთ! თქვენ წარმატებით გაიარეთ გადახდა და მოგენიჭათ სრული წვდომა ყველა კურსსა და მასალაზე.
+          {% if order.course %}
+            გილოცავთ! თქვენ წარმატებით შეიძინეთ კურსი: <strong>{{ order.course.title }}</strong>. სრული სასწავლო მასალა უკვე გახსნილია!
+          {% else %}
+            გილოცავთ! თქვენ წარმატებით გაიარეთ გადახდა და მოგენიჭათ სრული წვდომა სასწავლო მასალაზე.
+          {% endif %}
         </p>
         {% elif order and order.status == 'declined' %}
         <div class="status-icon danger">
@@ -156,6 +160,12 @@
             <span class="order-label">შეკვეთის ნომერი:</span>
             <span class="order-val">{{ order.order_id }}</span>
           </div>
+          {% if order.course %}
+          <div class="order-row">
+            <span class="order-label">არჩეული კურსი:</span>
+            <span class="order-val">{{ order.course.title }}</span>
+          </div>
+          {% endif %}
           <div class="order-row">
             <span class="order-label">პაკეტი:</span>
             <span class="order-val">{{ order.get_plan_type_display }}</span>
@@ -172,11 +182,17 @@
         {% endif %}
 
         {% if order and order.status == 'approved' %}
-        <a href="{% url 'home' %}" class="btn-action">
-          <i class="fa-solid fa-graduation-cap" style="margin-right: 8px;"></i> სწავლის დაწყება
-        </a>
+          {% if order.course %}
+          <a href="{% url 'course_detail' pk=order.course.id %}" class="btn-action" style="background: #22c55e; color: #0f172a; font-weight: 700;">
+            <i class="fa-solid fa-graduation-cap" style="margin-right: 8px;"></i> გადადით კურსზე →
+          </a>
+          {% else %}
+          <a href="{% url 'home' %}" class="btn-action">
+            <i class="fa-solid fa-graduation-cap" style="margin-right: 8px;"></i> სწავლის დაწყება
+          </a>
+          {% endif %}
         {% elif order and order.status == 'declined' %}
-        <a href="{% url 'payments:pricing' %}" class="btn-action" style="background: #ef4444; color: white;">
+        <a href="{% url 'payments:pricing' %}{% if order.course %}?course_id={{ order.course.id }}{% endif %}" class="btn-action" style="background: #ef4444; color: white;">
           <i class="fa-solid fa-rotate-right" style="margin-right: 8px;"></i> ხელახლა ცდა
         </a>
         {% else %}
