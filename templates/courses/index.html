@@ -48,6 +48,9 @@
 
         <div class="nav-actions">
           {% if user.is_authenticated %}
+          <span style="color: #f8fafc; font-size: 14px; margin-right: 12px; font-weight: 500;">
+            <i class="fa-solid fa-user-graduate" style="color: #38bdf8; margin-right: 6px;"></i>{{ user.student_name }}
+          </span>
           <form
             action="{% url 'logout' %}"
             method="post"

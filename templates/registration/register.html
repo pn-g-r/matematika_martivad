@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="en">
+<html lang="ka">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -17,6 +17,7 @@
         align-items: center;
         min-height: calc(100vh - 80px);
         background: rgb(3, 7, 18);
+        padding: 40px 15px;
         position: relative;
       }
       .auth-card {
@@ -26,7 +27,7 @@
         border-radius: 16px;
         padding: 40px;
         width: 100%;
-        max-width: 450px;
+        max-width: 540px;
         box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
         color: #f8fafc;
         text-align: center;
@@ -39,26 +40,25 @@
         -webkit-text-fill-color: transparent;
         background-clip: text;
       }
-      .auth-card p {
+      .auth-card p.subtitle {
         color: #cbd5e1;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
         font-size: 14px;
       }
       .auth-form {
         text-align: left;
       }
-      .auth-form p {
-        margin-bottom: 20px;
-        color: #cbd5e1;
+      .form-group {
+        margin-bottom: 18px;
       }
-      .auth-form label {
+      .auth-form label.form-label {
         display: block;
-        margin-bottom: 8px;
+        margin-bottom: 6px;
         font-weight: 600;
         color: #e2e8f0;
         font-size: 14px;
       }
-      .auth-form input {
+      .auth-form input.form-input {
         width: 100%;
         padding: 12px 16px;
         border: 1px solid rgba(255, 255, 255, 0.2);
@@ -68,25 +68,73 @@
         font-size: 15px;
         outline: none;
         transition: all 0.3s ease;
+        box-sizing: border-box;
       }
-      .auth-form input:focus {
+      .auth-form input.form-input:focus {
         border-color: #38bdf8;
         box-shadow: 0 0 5px rgba(56, 189, 248, 0.5);
+      }
+      /* Grade Horizontal Radio Group */
+      .grade-radio-group {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        margin-top: 6px;
+        width: 100%;
+      }
+      .grade-radio-label {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        padding: 10px 8px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        user-select: none;
+        flex: 1;
+        text-align: center;
+        color: #f8fafc;
+        font-weight: 500;
+        font-size: 14px;
+        margin: 0;
+      }
+      .grade-radio-label:hover {
+        background: rgba(56, 189, 248, 0.15);
+        border-color: #38bdf8;
+      }
+      .grade-radio-label input[type="radio"] {
+        accent-color: #38bdf8;
+        cursor: pointer;
+        width: 16px;
+        height: 16px;
+        margin: 0;
+      }
+      .grade-radio-label:has(input[type="radio"]:checked) {
+        border-color: #38bdf8;
+        background: rgba(56, 189, 248, 0.25);
+        color: #38bdf8;
+        font-weight: 700;
       }
       .auth-form .helptext {
         font-size: 12px;
         color: #94a3b8;
         display: block;
-        margin-top: 5px;
+        margin-top: 4px;
       }
-      .auth-form ul.errorlist {
+      .errorlist {
         color: #ef4444;
         font-size: 13px;
         list-style-type: none;
         padding: 0;
-        margin: 5px 0 10px;
+        margin: 4px 0 0;
       }
-      .auth-form button {
+      .auth-form button[type="submit"] {
         width: 100%;
         padding: 14px;
         background: #38bdf8;
@@ -96,10 +144,10 @@
         font-size: 16px;
         font-weight: bold;
         cursor: pointer;
-        margin-top: 10px;
+        margin-top: 15px;
         transition: background 0.3s;
       }
-      .auth-form button:hover {
+      .auth-form button[type="submit"]:hover {
         background: #0ea5e9;
       }
       .auth-links {
@@ -112,6 +160,16 @@
       }
       .auth-links a:hover {
         text-decoration: underline;
+      }
+      @media (max-width: 480px) {
+        .grade-radio-group {
+          gap: 4px;
+        }
+        .grade-radio-label {
+          padding: 8px 4px;
+          font-size: 13px;
+          gap: 4px;
+        }
       }
     </style>
   </head>
@@ -131,21 +189,82 @@
     <section class="auth-container">
       <div class="auth-card">
         <h2>რეგისტრაცია</h2>
-        <p>შექმენით ახალი ანგარიში</p>
+        <p class="subtitle">შექმენით ახალი ანგარიში</p>
 
-        <form method="post" class="auth-form">
-          {% csrf_token %} {% if register_form.non_field_errors %}
-          <div style="color: #ef4444; margin-bottom: 10px">
+        {% if messages %}
+        <div style="margin-bottom: 20px;">
+          {% for message in messages %}
+          <div style="padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 10px; {% if message.tags == 'error' %}background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4);{% else %}background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4);{% endif %}">
+            {{ message }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <form method="post" class="auth-form" novalidate>
+          {% csrf_token %}
+          {% if register_form.non_field_errors %}
+          <div style="color: #ef4444; margin-bottom: 15px; font-size: 14px; background: rgba(239, 68, 68, 0.15); padding: 10px; border-radius: 8px;">
             {{ register_form.non_field_errors }}
           </div>
-          {% endif %} {% for field in register_form %}
-          <!-- prettier-ignore -->
-          <p>
-            <label for="{{ field.id_for_label }}">{% if field.name == 'username' %}მომხმარებლის სახელი:{% elif field.name == 'password1' %}პაროლი:{% elif field.name == 'password2' %}პაროლის დადასტურება:{% else %}{{ field.label }}{% endif %}</label>
-            {{ field }} 
-            {{ field.errors }}
-          </p>
-          {% endfor %}
+          {% endif %}
+
+          <!-- 1. მოსწავლის სახელი და გვარი -->
+          <div class="form-group">
+            <label class="form-label" for="{{ register_form.student_name.id_for_label }}">{{ register_form.student_name.label }}</label>
+            {{ register_form.student_name }}
+            {{ register_form.student_name.errors }}
+          </div>
+
+          <!-- 2. მშობლის ტელეფონის ნომერი -->
+          <div class="form-group">
+            <label class="form-label" for="{{ register_form.phone_number.id_for_label }}">{{ register_form.phone_number.label }}</label>
+            {{ register_form.phone_number }}
+            {{ register_form.phone_number.errors }}
+          </div>
+
+          <!-- 3. მშობლის სახელი და გვარი -->
+          <div class="form-group">
+            <label class="form-label" for="{{ register_form.parent_name.id_for_label }}">{{ register_form.parent_name.label }}</label>
+            {{ register_form.parent_name }}
+            {{ register_form.parent_name.errors }}
+          </div>
+
+          <!-- 4. კლასი (radio buttons on horizontal line) -->
+          <div class="form-group">
+            <label class="form-label">{{ register_form.grade.label }}</label>
+            <div class="grade-radio-group">
+              {% for radio in register_form.grade %}
+              <label class="grade-radio-label">
+                {{ radio.tag }}
+                <span>{{ radio.choice_label }}</span>
+              </label>
+              {% endfor %}
+            </div>
+            {{ register_form.grade.errors }}
+          </div>
+
+          <!-- 5. წიგნის ავტორი -->
+          <div class="form-group">
+            <label class="form-label" for="{{ register_form.book_author.id_for_label }}">{{ register_form.book_author.label }}</label>
+            {{ register_form.book_author }}
+            {{ register_form.book_author.errors }}
+          </div>
+
+          <!-- 6. პაროლი -->
+          <div class="form-group">
+            <label class="form-label" for="{{ register_form.password1.id_for_label }}">{{ register_form.password1.label }}</label>
+            {{ register_form.password1 }}
+            {{ register_form.password1.errors }}
+          </div>
+
+          <!-- 7. პაროლის დადასტურება -->
+          <div class="form-group">
+            <label class="form-label" for="{{ register_form.password2.id_for_label }}">{{ register_form.password2.label }}</label>
+            {{ register_form.password2 }}
+            {{ register_form.password2.errors }}
+          </div>
+
           <button type="submit">რეგისტრაცია</button>
         </form>
 
@@ -156,5 +275,31 @@
         </div>
       </div>
     </section>
+
+    <script>
+      // Strict 9-digit only input for phone numbers
+      document.querySelectorAll('.phone-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+          this.value = this.value.replace(/\D/g, '').slice(0, 9);
+        });
+        input.addEventListener('keydown', function(e) {
+          if (['Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'Tab', 'Enter'].includes(e.key)) {
+            return;
+          }
+          if ((e.ctrlKey || e.metaKey) && ['a', 'c', 'v', 'x'].includes(e.key.toLowerCase())) {
+            return;
+          }
+          if (!/^\d$/.test(e.key)) {
+            e.preventDefault();
+          }
+        });
+        input.addEventListener('paste', function(e) {
+          e.preventDefault();
+          const paste = (e.clipboardData || window.clipboardData).getData('text');
+          this.value = paste.replace(/\D/g, '').slice(0, 9);
+        });
+      });
+    </script>
   </body>
 </html>
+
