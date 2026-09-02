@@ -10,18 +10,13 @@ class CustomUserAdmin(UserAdmin):
     form = CustomUserAdminChangeForm
 
     list_display = (
-        'username',
         'student_name',
-        'phone_number',
-        'first_name',
-        'last_name',
-        'email',
+        'parent_name',
         'grade',
-        'is_staff',
-        'is_superuser',
-        'is_active',
+        'book_author',
+        'phone_number',
     )
-    list_filter = ('is_staff', 'is_superuser', 'is_active', 'grade')
+    list_filter = ('grade', 'is_staff', 'is_superuser', 'is_active')
     fieldsets = (
         (None, {'fields': ('username', 'password')}),
         ('პირადი ინფორმაცია (Personal info)', {
@@ -72,8 +67,9 @@ class CustomUserAdmin(UserAdmin):
             ),
         }),
     )
-    search_fields = ('username', 'phone_number', 'first_name', 'last_name', 'email', 'student_name', 'parent_name')
-    ordering = ('username',)
+    search_fields = ('student_name', 'parent_name', 'phone_number', 'username', 'email', 'book_author')
+    ordering = ('-date_joined',)
+
 
 
 
