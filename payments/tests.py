@@ -90,39 +90,48 @@ class PaymentsWorkflowTests(TestCase):
         mock_flitt.return_value = {
             'response_status': 'success',
             'checkout_url': 'https://pay.flitt.com/checkout/mock_token_123',
+            'payment_token': 'mock_token_123',
         }
         self.client.force_login(self.user)
         response = self.client.get(reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}))
         
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, 'https://pay.flitt.com/checkout/mock_token_123')
-
         order = PaymentOrder.objects.filter(user=self.user, plan_type=PlanType.MONTHLY).first()
         self.assertIsNotNone(order)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('payments:checkout_pay', kwargs={'order_id': order.order_id}))
+
         self.assertEqual(order.amount_gel, Decimal('50.00'))
         self.assertEqual(order.amount_tetri, 5000)
         self.assertTrue(order.is_subscription)
         self.assertEqual(order.status, OrderStatus.PROCESSING)
-        self.assertEqual(order.checkout_url, 'https://pay.flitt.com/checkout/mock_token_123')
+        self.assertEqual(order.payment_token, 'mock_token_123')
+
+        # Test embedded pay page
+        pay_res = self.client.get(reverse('payments:checkout_pay', kwargs={'order_id': order.order_id}))
+        self.assertEqual(pay_res.status_code, 200)
+        self.assertContains(pay_res, 'mock_token_123')
+        self.assertContains(pay_res, 'layout: \'plain\'')
 
     @patch.object(FlittPaymentClient, 'create_checkout_session')
     def test_checkout_init_yearly_onetime(self, mock_flitt):
         mock_flitt.return_value = {
             'response_status': 'success',
             'checkout_url': 'https://pay.flitt.com/checkout/mock_token_year_456',
+            'payment_token': 'mock_token_year_456',
         }
         self.client.force_login(self.user)
         response = self.client.get(reverse('payments:checkout_init', kwargs={'plan_type': 'yearly'}))
         
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, 'https://pay.flitt.com/checkout/mock_token_year_456')
-
         order = PaymentOrder.objects.filter(user=self.user, plan_type=PlanType.YEARLY).first()
         self.assertIsNotNone(order)
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('payments:checkout_pay', kwargs={'order_id': order.order_id}))
+
         self.assertEqual(order.amount_gel, Decimal('400.00'))
         self.assertEqual(order.amount_tetri, 40000)
         self.assertFalse(order.is_subscription)
         self.assertEqual(order.status, OrderStatus.PROCESSING)
+        self.assertEqual(order.payment_token, 'mock_token_year_456')
 
     def test_callback_with_invalid_signature_rejected(self):
         payload = {

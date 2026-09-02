@@ -54,6 +54,7 @@ def verify_flitt_signature(params: dict, secret_key: str = None) -> bool:
 import hashlib
 import json
 import logging
+import urllib.parse
 from datetime import datetime
 from django.conf import settings
 from flittpayments import Api, Checkout
@@ -160,6 +161,7 @@ class FlittPaymentClient:
 
                 checkout_url = ""
                 payment_id = ""
+                payment_token = ""
                 if isinstance(res, dict):
                     if "data" in res:
                         try:
@@ -167,17 +169,24 @@ class FlittPaymentClient:
                             order_dict = parsed_data.get("order", {})
                             checkout_url = order_dict.get("checkout_url", "")
                             payment_id = str(order_dict.get("payment_id", ""))
+                            payment_token = order_dict.get("token", "")
                         except Exception as parse_err:
                             logger.error("Failed to parse Flitt subscription response data: %s", parse_err)
                     elif "checkout_url" in res:
                         checkout_url = res["checkout_url"]
                         payment_id = str(res.get("payment_id", ""))
+                        payment_token = str(res.get("token", ""))
+
+                if checkout_url and not payment_token:
+                    qs = urllib.parse.parse_qs(urllib.parse.urlparse(checkout_url).query)
+                    payment_token = qs.get("token", [""])[0]
 
                 if checkout_url:
                     return {
                         "response_status": "success",
                         "checkout_url": checkout_url,
                         "payment_id": payment_id,
+                        "payment_token": payment_token,
                         "raw": res,
                     }
                 else:
@@ -209,6 +218,11 @@ class FlittPaymentClient:
 
                 checkout_url = res.get("checkout_url", "")
                 payment_id = str(res.get("payment_id", ""))
+                payment_token = res.get("token", "")
+                if checkout_url and not payment_token:
+                    qs = urllib.parse.parse_qs(urllib.parse.urlparse(checkout_url).query)
+                    payment_token = qs.get("token", [""])[0]
+
                 response_status = res.get("response_status", "success" if checkout_url else "failure")
 
                 if checkout_url:
@@ -216,6 +230,7 @@ class FlittPaymentClient:
                         "response_status": "success",
                         "checkout_url": checkout_url,
                         "payment_id": payment_id,
+                        "payment_token": payment_token,
                         "raw": res,
                     }
                 else:

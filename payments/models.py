@@ -85,6 +85,12 @@ class PaymentOrder(models.Model):
         null=True,
         verbose_name="Flitt Checkout URL"
     )
+    payment_token = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        verbose_name="Flitt Payment Token"
+    )
     response_status = models.CharField(
         max_length=32,
         blank=True,

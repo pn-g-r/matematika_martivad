@@ -105,15 +105,17 @@ def checkout_init_view(request, plan_type):
 
     response_status = flitt_res.get('response_status', '')
     checkout_url = flitt_res.get('checkout_url', '')
+    payment_token = flitt_res.get('payment_token', '')
 
     order.response_status = response_status
     order.raw_response = flitt_res
 
-    if response_status == 'success' and checkout_url:
+    if response_status == 'success' and (checkout_url or payment_token):
         order.checkout_url = checkout_url
+        order.payment_token = payment_token
         order.status = OrderStatus.PROCESSING
-        order.save(update_fields=['checkout_url', 'status', 'response_status', 'raw_response'])
-        return redirect(checkout_url)
+        order.save(update_fields=['checkout_url', 'payment_token', 'status', 'response_status', 'raw_response'])
+        return redirect('payments:checkout_pay', order_id=order.order_id)
     else:
         err_msg = flitt_res.get('error_message', 'გადახდის ინიციალიზაცია ვერ მოხერხდა.')
         err_code = flitt_res.get('error_code', '')
@@ -123,6 +125,21 @@ def checkout_init_view(request, plan_type):
         order.save(update_fields=['status', 'response_code', 'response_description', 'raw_response'])
         messages.error(request, f"გადახდის სისტემასთან დაკავშირება ვერ მოხერხდა: {err_msg}")
         return redirect('payments:pricing')
+
+
+@login_required
+def checkout_pay_view(request, order_id):
+    order = get_object_or_404(PaymentOrder, order_id=order_id, user=request.user)
+    plan_info = PLANS_CONFIG.get(order.plan_type, {})
+
+    context = {
+        'order': order,
+        'plan_info': plan_info,
+        'token': order.payment_token,
+        'response_url': request.build_absolute_uri(reverse('payments:payment_response')),
+    }
+    return render(request, 'payments/checkout_embedded.html', context)
+
 
 
 @csrf_exempt
