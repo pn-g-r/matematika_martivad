@@ -1,7 +1,7 @@
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
-from accounts.forms import CustomUserCreationForm, CustomAuthenticationForm
+from accounts.forms import CustomUserCreationForm, CustomAuthenticationForm, CustomUserAdminCreationForm, CustomUserAdminChangeForm
 
 User = get_user_model()
 
@@ -23,6 +23,7 @@ class AccountsAuthTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(User.objects.filter(phone_number='555111222').exists())
         user = User.objects.get(phone_number='555111222')
+        self.assertEqual(user.username, '555111222')
         self.assertEqual(user.student_name, 'გიორგი მაისურაძე')
         self.assertEqual(user.parent_name, 'ნინო მაისურაძე')
         self.assertEqual(user.grade, 'VI')
@@ -51,6 +52,7 @@ class AccountsAuthTests(TestCase):
 
     def test_registration_duplicate_phone(self):
         User.objects.create_user(
+            username='555111222',
             phone_number='555111222',
             password='ExistingPass123!',
             student_name='დავით ბერიძე',
@@ -83,6 +85,7 @@ class AccountsAuthTests(TestCase):
 
     def test_login_successful_with_phone_and_password(self):
         user = User.objects.create_user(
+            username='555111222',
             phone_number='555111222',
             password='StrongPass123!@#',
             student_name='გიორგი მაისურაძე',
@@ -111,6 +114,7 @@ class AccountsAuthTests(TestCase):
 
     def test_login_wrong_password(self):
         User.objects.create_user(
+            username='555111222',
             phone_number='555111222',
             password='CorrectPassword123!',
             student_name='გიორგი მაისურაძე',
@@ -127,6 +131,7 @@ class AccountsAuthTests(TestCase):
 
     def test_logout(self):
         User.objects.create_user(
+            username='555111222',
             phone_number='555111222',
             password='StrongPass123!@#',
             student_name='გიორგი მაისურაძე',
@@ -144,22 +149,24 @@ class AccountsAuthTests(TestCase):
 
     def test_superuser_creation_with_classic_fields(self):
         superuser = User.objects.create_superuser(
-            phone_number='555000111',
-            password='AdminPassword123!',
+            username='adminuser',
             email='admin@school.ge',
+            password='AdminPassword123!',
             first_name='ადმინ',
             last_name='ადმინიძე'
         )
+        self.assertEqual(superuser.username, 'adminuser')
         self.assertTrue(superuser.is_superuser)
         self.assertTrue(superuser.is_staff)
         self.assertEqual(superuser.email, 'admin@school.ge')
         self.assertEqual(superuser.first_name, 'ადმინ')
         self.assertEqual(superuser.last_name, 'ადმინიძე')
         self.assertEqual(superuser.student_name, '')
+        self.assertIsNone(superuser.phone_number)
 
     def test_admin_creation_and_change_forms(self):
-        from accounts.forms import CustomUserAdminCreationForm, CustomUserAdminChangeForm
         form = CustomUserAdminCreationForm({
+            'username': 'staffmember',
             'phone_number': '555222333',
             'first_name': 'ლევან',
             'last_name': 'ბერიძე',
@@ -171,12 +178,16 @@ class AccountsAuthTests(TestCase):
         })
         self.assertTrue(form.is_valid(), form.errors)
         user = form.save()
+        self.assertEqual(user.username, 'staffmember')
         self.assertEqual(user.phone_number, '555222333')
         self.assertTrue(user.is_staff)
 
         change_form = CustomUserAdminChangeForm(instance=user)
+        self.assertIn('username', change_form.fields)
         self.assertIn('first_name', change_form.fields)
         self.assertIn('email', change_form.fields)
         self.assertIn('student_name', change_form.fields)
+        self.assertIn('phone_number', change_form.fields)
+
 
 

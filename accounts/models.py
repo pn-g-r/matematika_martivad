@@ -1,5 +1,5 @@
 from django.db import models
-from django.contrib.auth.models import AbstractUser, BaseUserManager
+from django.contrib.auth.models import AbstractUser, UserManager
 from django.core.validators import RegexValidator
 
 phone_validator = RegexValidator(
@@ -7,33 +7,7 @@ phone_validator = RegexValidator(
     message='ტელეფონის ნომერი უნდა შედგებოდეს ზუსტად 9 ციფრისგან (მაგ: 555111222).'
 )
 
-class CustomUserManager(BaseUserManager):
-    def create_user(self, phone_number, password=None, **extra_fields):
-        if not phone_number:
-            raise ValueError('ტელეფონის ნომერი აუცილებელია.')
-        phone_number = str(phone_number).strip()
-        if 'email' in extra_fields and extra_fields['email']:
-            extra_fields['email'] = self.normalize_email(extra_fields['email'])
-        user = self.model(phone_number=phone_number, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, phone_number, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('is_active', True)
-
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
-
-        return self.create_user(phone_number, password, **extra_fields)
-
 class CustomUser(AbstractUser):
-    username = None
-
     CLASS_CHOICES = [
         ('IV', 'IV'),
         ('V', 'V'),
@@ -51,6 +25,8 @@ class CustomUser(AbstractUser):
     )
     phone_number = models.CharField(
         max_length=9,
+        blank=True,
+        null=True,
         unique=True,
         validators=[phone_validator],
         verbose_name="მშობლის ტელეფონის ნომერი"
@@ -75,16 +51,14 @@ class CustomUser(AbstractUser):
         verbose_name="წიგნის ავტორი"
     )
 
-    USERNAME_FIELD = 'phone_number'
-    REQUIRED_FIELDS = ['email']
-
-    objects = CustomUserManager()
+    objects = UserManager()
 
     def __str__(self):
         if self.student_name:
-            return f"{self.student_name} ({self.phone_number})"
+            return f"{self.student_name} ({self.phone_number or self.username})"
         if self.first_name or self.last_name:
             full = f"{self.first_name} {self.last_name}".strip()
-            return f"{full} ({self.phone_number})"
-        return str(self.phone_number)
+            return f"{full} ({self.username})"
+        return self.username
+
 

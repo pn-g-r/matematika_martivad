@@ -11,7 +11,7 @@ def register_view(request):
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            login(request, user)
+            login(request, user, backend='accounts.backends.PhoneOrUsernameModelBackend')
             messages.success(request, "რეგისტრაცია წარმატებით დასრულდა!")
             return redirect('home')
         else:

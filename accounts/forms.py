@@ -1,11 +1,11 @@
 import re
 from django import forms
 from django.contrib.auth import authenticate, get_user_model
+from django.contrib.auth.forms import ReadOnlyPasswordHashField, UserChangeForm
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from .models import CustomUser
-
-from django.contrib.auth.forms import ReadOnlyPasswordHashField
 
 PHONE_REGEX = re.compile(r'^\d{9}$')
 PHONE_ERROR_MSG = "ტელეფონის ნომერი უნდა შედგებოდეს ზუსტად 9 ციფრისგან (მაგ: 555111222). სხვა სიმბოლოები დაუშვებელია."
@@ -108,7 +108,7 @@ class CustomUserCreationForm(forms.ModelForm):
         phone = self.cleaned_data.get('phone_number', '').strip()
         if not PHONE_REGEX.match(phone):
             raise ValidationError(PHONE_ERROR_MSG)
-        if CustomUser.objects.filter(phone_number=phone).exists():
+        if CustomUser.objects.filter(Q(phone_number=phone) | Q(username=phone)).exists():
             raise ValidationError("ამ ტელეფონის ნომრით მომხმარებელი უკვე რეგისტრირებულია.")
         return phone
 
@@ -128,6 +128,7 @@ class CustomUserCreationForm(forms.ModelForm):
                 self.add_error('password2', "პაროლები ერთმანეთს არ ემთხვევა.")
             else:
                 user = CustomUser(
+                    username=cleaned_data.get('phone_number', ''),
                     phone_number=cleaned_data.get('phone_number', ''),
                     student_name=cleaned_data.get('student_name', ''),
                     parent_name=cleaned_data.get('parent_name', ''),
@@ -143,6 +144,9 @@ class CustomUserCreationForm(forms.ModelForm):
 
     def save(self, commit=True):
         user = super().save(commit=False)
+        phone = self.cleaned_data["phone_number"]
+        user.username = phone
+        user.phone_number = phone
         user.set_password(self.cleaned_data["password1"])
         if commit:
             user.save()
@@ -195,7 +199,6 @@ class CustomAuthenticationForm(forms.Form):
         if phone_number and password:
             self.user_cache = authenticate(
                 self.request,
-                phone_number=phone_number,
                 username=phone_number,
                 password=password
             )
@@ -221,6 +224,12 @@ class CustomAuthenticationForm(forms.Form):
 
 
 class CustomUserAdminCreationForm(forms.ModelForm):
+    username = forms.CharField(
+        label="მომხმარებლის სახელი (Username)",
+        max_length=150,
+        required=True,
+        help_text="სავალდებულო. 150 ან ნაკლები სიმბოლო.",
+    )
     password1 = forms.CharField(
         label="პაროლი",
         widget=forms.PasswordInput(attrs={'autocomplete': 'new-password'}),
@@ -235,10 +244,11 @@ class CustomUserAdminCreationForm(forms.ModelForm):
     class Meta:
         model = CustomUser
         fields = (
-            'phone_number',
+            'username',
             'first_name',
             'last_name',
             'email',
+            'phone_number',
             'student_name',
             'parent_name',
             'grade',
@@ -248,8 +258,18 @@ class CustomUserAdminCreationForm(forms.ModelForm):
             'is_active',
         )
 
+    def clean_username(self):
+        username = self.cleaned_data.get('username', '').strip()
+        if not username:
+            raise ValidationError("მომხმარებლის სახელი სავალდებულოა.")
+        if CustomUser.objects.filter(username__iexact=username).exists():
+            raise ValidationError("ეს მომხმარებლის სახელი უკვე დაკავებულია.")
+        return username
+
     def clean_phone_number(self):
         phone = self.cleaned_data.get('phone_number', '').strip()
+        if not phone:
+            return None
         if not PHONE_REGEX.match(phone):
             raise ValidationError(PHONE_ERROR_MSG)
         if CustomUser.objects.filter(phone_number=phone).exists():
@@ -265,7 +285,7 @@ class CustomUserAdminCreationForm(forms.ModelForm):
                 self.add_error('password2', "პაროლები ერთმანეთს არ ემთხვევა.")
             else:
                 user = CustomUser(
-                    phone_number=cleaned_data.get('phone_number', ''),
+                    username=cleaned_data.get('username', ''),
                     email=cleaned_data.get('email', ''),
                     first_name=cleaned_data.get('first_name', ''),
                     last_name=cleaned_data.get('last_name', ''),
@@ -284,21 +304,15 @@ class CustomUserAdminCreationForm(forms.ModelForm):
         return user
 
 
-class CustomUserAdminChangeForm(forms.ModelForm):
-    password = ReadOnlyPasswordHashField(
-        label="პაროლი",
-        help_text=(
-            "პაროლები დაშიფრულია (ჰეშირებულია). პაროლის შესაცვლელად გამოიყენეთ "
-            '<a href="../password/">პაროლის შეცვლის ფორმა</a>.'
-        ),
-    )
-
+class CustomUserAdminChangeForm(UserChangeForm):
     class Meta:
         model = CustomUser
         fields = '__all__'
 
     def clean_phone_number(self):
         phone = self.cleaned_data.get('phone_number', '').strip()
+        if not phone:
+            return None
         if not PHONE_REGEX.match(phone):
             raise ValidationError(PHONE_ERROR_MSG)
         qs = CustomUser.objects.filter(phone_number=phone)
@@ -307,4 +321,5 @@ class CustomUserAdminChangeForm(forms.ModelForm):
         if qs.exists():
             raise ValidationError("ამ ტელეფონის ნომრით მომხმარებელი უკვე რეგისტრირებულია.")
         return phone
+
 

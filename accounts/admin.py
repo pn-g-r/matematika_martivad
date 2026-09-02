@@ -10,8 +10,9 @@ class CustomUserAdmin(UserAdmin):
     form = CustomUserAdminChangeForm
 
     list_display = (
-        'phone_number',
+        'username',
         'student_name',
+        'phone_number',
         'first_name',
         'last_name',
         'email',
@@ -22,17 +23,18 @@ class CustomUserAdmin(UserAdmin):
     )
     list_filter = ('is_staff', 'is_superuser', 'is_active', 'grade')
     fieldsets = (
-        (None, {'fields': ('phone_number', 'password')}),
-        ('კლასიკური ინფორმაცია (Classic Info)', {
+        (None, {'fields': ('username', 'password')}),
+        ('პირადი ინფორმაცია (Personal info)', {
             'fields': (
                 'first_name',
                 'last_name',
                 'email',
             )
         }),
-        ('მოსწავლის ინფორმაცია (Student Info)', {
+        ('მოსწავლის ინფორმაცია (Student info)', {
             'fields': (
                 'student_name',
+                'phone_number',
                 'parent_name',
                 'grade',
                 'book_author',
@@ -53,23 +55,25 @@ class CustomUserAdmin(UserAdmin):
         (None, {
             'classes': ('wide',),
             'fields': (
-                'phone_number',
+                'username',
+                'password1',
+                'password2',
                 'first_name',
                 'last_name',
                 'email',
+                'phone_number',
                 'student_name',
                 'parent_name',
                 'grade',
                 'book_author',
-                'password1',
-                'password2',
                 'is_staff',
                 'is_superuser',
                 'is_active',
             ),
         }),
     )
-    search_fields = ('phone_number', 'first_name', 'last_name', 'email', 'student_name', 'parent_name', 'book_author')
-    ordering = ('phone_number',)
+    search_fields = ('username', 'phone_number', 'first_name', 'last_name', 'email', 'student_name', 'parent_name')
+    ordering = ('username',)
+
 
 
