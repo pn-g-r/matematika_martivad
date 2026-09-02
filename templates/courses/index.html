@@ -1,0 +1,1124 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>მათემატიკა მარტივად</title>
+    <!-- Style -->
+    <link rel="stylesheet" href="{% static 'css/style.css' %}" />
+    <!-- Font Awesom Icon -->
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <!-- Box Icon -->
+    <link
+      href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css"
+      rel="stylesheet"
+    />
+    <!-- AOS CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css"
+      rel="stylesheet"
+    />
+    <!-- Swiper CSS -->
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css"
+    />
+  </head>
+  <body>
+    <!-- HEADER -->
+    <header class="header" id="siteHeader">
+      <div class="container nav">
+        <a href="{% url 'home' %}" class="logo" style="text-decoration: none; display: flex; align-items: center;">
+          <img src="{% static 'image/logo.webp' %}" alt="მათემატიკა მარტივად" style="height:48px; margin-right:12px; vertical-align:middle;" />
+          <span>მათემატიკა მარტივად</span>
+        </a>
+
+        <ul class="menu" id="menu">
+          <li>მთავარი</li>
+          <li>ჩვენ შესახებ</li>
+          <li>კურსები</li>
+          <li>გვერდები</li>
+          <li>ბლოგი</li>
+          <li>კონტაქტი</li>
+        </ul>
+
+        <div class="nav-actions">
+          {% if user.is_authenticated %}
+          <form
+            action="{% url 'logout' %}"
+            method="post"
+            style="display: inline"
+          >
+            {% csrf_token %}
+            <button type="submit" class="btn primary">გასვლა</button>
+          </form>
+          {% else %}
+          <a href="{% url 'login' %}" class="btn primary">ავტორიზაცია</a>
+          <a href="{% url 'register' %}" class="btn primary">რეგისტრაცია</a>
+          {% endif %}
+          <i class="bx bx-menu hamburger" id="hamburger"></i>
+        </div>
+      </div>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero">
+      <div class="container hero-flex">
+        <!-- LEFT -->
+        <div class="hero-text" data-aos="fade-left">
+          <span class="badge">
+            <i class="fa-solid fa-check"></i> ხელმისაწვდომი განათლება
+          </span>
+          <h1>
+            <span class="text-gradient">მათემატიკა მარტივად</span> <br />
+            IV - IX კლასელებისთვის
+          </h1>
+          <p>
+            ისწავლეთ მათემატიკა მარტივად და ხალისით! მიიღე <span class="highlight">ყველა</span> ამოცანის, მაგალითისა თუ თეორიული მასალის დეტალური ვიდეო-ახსნა <span class="highlight">შენი სკოლის სახელმძღვანელოდან</span>
+          </p>
+
+          <div class="buttons">
+            <a href="#" class="btn primary">შემოგვიერთდით</a>
+            <a href="#" class="btn outline">მეტის გაგება</a>
+          </div>
+
+          <div class="rating">
+            <div class="count">1K+</div>
+            <div>
+              <div class="stars">
+                <i class="bx bxs-star"></i>
+                <i class="bx bxs-star"></i>
+                <i class="bx bxs-star"></i>
+                <i class="bx bxs-star"></i>
+                <i class="bx bxs-star"></i>
+                <span>(5.0 შეფასება)</span>
+              </div>
+              <small>უამრავი კმაყოფილი მოსწავლე და მშობელი</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- RIGHT -->
+        <div class="hero-image" data-aos="fade-right">
+          <img src="{% static 'image/heroIcon1.png' %}" class="img-rotate" />
+          <img src="{% static 'image/heroIcon3.png' %}" class="heroIcon3" />
+          <div class="image-bg">
+            <img src="{% static 'image/heroImage.png' %}" alt="Student" />
+          </div>
+
+          <!-- Floating Card -->
+          <div class="instructor-card">
+            <div class="avatars">
+              <img src="{% static 'image/t1.jpg' %}" />
+              <img src="{% static 'image/t2.jpg' %}" />
+              <img src="{% static 'image/t3.jpg' %}" />
+            </div>
+            <div>
+              <strong>1000+</strong>
+              <span>ვიდეო გაკვეთილი</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div
+        class="stats-wrapper"
+        data-aos="zoom-in"
+        style="
+          background: rgba(15, 17, 26, 0.85);
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+          position: relative;
+          overflow: hidden;
+          border-radius: 16px;
+          padding: 20px 30px;
+        "
+      >
+        <!-- Glowing Ambient Orbs -->
+        <div
+          style="
+            position: absolute;
+            top: -50px;
+            left: -20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(0, 198, 255, 0.3);
+            filter: blur(60px);
+            border-radius: 50%;
+            pointer-events: none;
+          "
+        ></div>
+        <div
+          style="
+            position: absolute;
+            bottom: -50px;
+            right: -20px;
+            width: 150px;
+            height: 150px;
+            background: rgba(255, 46, 147, 0.3);
+            filter: blur(60px);
+            border-radius: 50%;
+            pointer-events: none;
+          "
+        ></div>
+
+        <!-- Stat Item 1 -->
+        <div class="stat-item" style="position: relative; z-index: 1">
+          <div
+            class="icon-box"
+            style="
+              background: linear-gradient(135deg, #0072ff, #00c6ff);
+              box-shadow: 0 8px 24px rgba(0, 198, 255, 0.3);
+              border: none;
+              width: 55px;
+              height: 55px;
+              border-radius: 12px;
+            "
+          >
+            <i
+              class="fa-solid fa-user-graduate"
+              style="color: white; font-size: 22px"
+            ></i>
+          </div>
+          <div class="stat-text">
+            <h2
+              style="
+                font-size: 28px;
+                background: linear-gradient(to right, #ffffff, #d1d5db);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin: 0;
+              "
+            >
+              5k+
+            </h2>
+            <p
+              style="
+                color: #9ca3af;
+                font-size: 13px;
+                font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-top: 2px;
+              "
+            >
+              მოსწავლე
+            </p>
+          </div>
+        </div>
+
+        <!-- Stat Item 2 -->
+        <div class="stat-item" style="position: relative; z-index: 1">
+          <div
+            class="icon-box"
+            style="
+              background: linear-gradient(135deg, #ff8000, #ff2e93);
+              box-shadow: 0 8px 24px rgba(255, 46, 147, 0.3);
+              border: none;
+              width: 55px;
+              height: 55px;
+              border-radius: 12px;
+            "
+          >
+            <i
+              class="fa-solid fa-circle-play"
+              style="color: white; font-size: 22px"
+            ></i>
+          </div>
+          <div class="stat-text">
+            <h2
+              style="
+                font-size: 28px;
+                background: linear-gradient(to right, #ffffff, #d1d5db);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin: 0;
+              "
+            >
+              1000+
+            </h2>
+            <p
+              style="
+                color: #9ca3af;
+                font-size: 13px;
+                font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-top: 2px;
+              "
+            >
+              ვიდეო გაკვეთილი
+            </p>
+          </div>
+        </div>
+
+        <!-- Stat Item 3 -->
+        <div class="stat-item" style="position: relative; z-index: 1">
+          <div
+            class="icon-box"
+            style="
+              background: linear-gradient(135deg, #4a00e0, #8a2be2);
+              box-shadow: 0 8px 24px rgba(138, 43, 226, 0.3);
+              border: none;
+              width: 55px;
+              height: 55px;
+              border-radius: 12px;
+            "
+          >
+            <i
+              class="fa-solid fa-award"
+              style="color: white; font-size: 22px"
+            ></i>
+          </div>
+          <div class="stat-text">
+            <h2
+              style="
+                font-size: 28px;
+                background: linear-gradient(to right, #ffffff, #d1d5db);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                margin: 0;
+              "
+            >
+              10 წლიანი
+            </h2>
+            <p
+              style="
+                color: #9ca3af;
+                font-size: 13px;
+                font-weight: 500;
+                text-transform: uppercase;
+                letter-spacing: 1px;
+                margin-top: 2px;
+              "
+            >
+              გამოცდილება
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Video Section -->
+    <section
+      class="video-section"
+      style="
+        padding-top: 60px;
+        padding-bottom: 20px;
+        text-align: center;
+        margin-top: 50px;
+      "
+    >
+      <div class="container" data-aos="zoom-in">
+        <iframe
+          width="100%"
+          height="500"
+          style="
+            max-width: 800px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+          "
+          src="https://www.youtube.com/embed/PA-f0MjuK_Q"
+          title="YouTube video player"
+          frameborder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+          referrerpolicy="strict-origin-when-cross-origin"
+          allowfullscreen
+        ></iframe>
+      </div>
+    </section>
+
+    <!-- Courses Section -->
+
+    <section id="courses-section" class="courses" style="padding-top: 50px">
+      <div class="container">
+        <img src="{% static 'image/heroIcon3.png' %}" class="heroIcon3" />
+
+        <!-- Section Header -->
+        <div class="section-header" data-aos="zoom-in">
+          <div>
+            <h2 class="heading">
+              აირჩიე შენი <span class="indigo">სახელმძღვანელო</span>
+            </h2>
+            <p>
+              ყველა ამოცანის, მაგალითისა თუ თეორიული მასალის გარჩევა შენი სკოლის სახელმძღვანელოდან
+            </p>
+          </div>
+          <a href="#" class="btn primary">ყველა კურსი</a>
+        </div>
+
+        <!-- Course Grid -->
+        <div class="course-grid" data-aos="fade-right">
+          {% for course in courses %}
+          <a
+            href="{% url 'course_detail' course.pk %}"
+            class="course-card"
+            style="text-decoration: none; color: inherit; display: block"
+          >
+            <!-- For demonstration, using video_url or a random image. We don't have an image field, so just fallback to c1.jpg -->
+            <img src="{% static 'image/c1.jpg' %}" />
+            <div class="course-content">
+              <span class="badge" style="color: black">{{ course.grade }}</span>
+              <p style="margin-top: 8px; font-size: 14px; color: #666; line-height: 1.5;">
+                ყველა ამოცანის, მაგალითისა თუ თეორიული საკითხის ვიდეო-გარჩევა
+              </p>
+              <div style="margin-top: 15px; font-weight: bold; color: var(--blue); font-size: 18px;">
+                {{ course.price|floatformat:2 }}₾/თვეში
+              </div>
+            </div>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    <!-- About Section -->
+    <section class="about-section" style="padding: 80px 20px">
+      <div class="container" data-aos="fade-up">
+        <h2
+          class="heading"
+          style="
+            text-align: center;
+            margin-bottom: 40px;
+            font-family: &quot;archyedt-bold&quot;, system-ui;
+          "
+        >
+          რას გთავაზობთ პროექტი <br /><span class="highlight"
+            >“მათემატიკა მარტივად” ?</span
+          >
+        </h2>
+
+        <!-- CSS for About Grid -->
+        <style>
+          .about-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+          }
+          .about-box {
+            background: var(--white);
+            padding: 30px 20px;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            transition: transform 0.3s;
+          }
+          .about-box:hover {
+            transform: translateY(-5px);
+          }
+          .about-icon {
+            font-size: 40px;
+            color: var(--blue);
+            margin-bottom: 20px;
+          }
+          .about-box h3 {
+            margin-bottom: 15px;
+            font-size: 20px;
+            color: var(--dark);
+          }
+          .about-box p {
+            color: #666;
+            font-size: 15px;
+            line-height: 1.6;
+          }
+        </style>
+
+        <div class="about-grid">
+          <!-- Item 1 -->
+          <div class="about-box" data-aos="fade-up" data-aos-delay="100">
+            <div class="about-icon"><i class="fa-solid fa-video"></i></div>
+            <h3>ვიდეო გაკვეთილები</h3>
+            <p>
+              ნებისმიერი გაკვეთილის ვიდეო ახსნა პირდაპირ თქვენი სკოლის წიგნიდან.
+              ამოცანების დეტალური გარჩევა და თეორიის ახსნა.
+            </p>
+          </div>
+
+          <!-- Item 2 -->
+          <div class="about-box" data-aos="fade-up" data-aos-delay="200">
+            <div class="about-icon">
+              <i class="fa-solid fa-clipboard-question"></i>
+            </div>
+            <h3>ყოველკვირეული ტესტები</h3>
+            <p>
+              განვლილ მასალაზე დაყრდნობით შედგენილი ტესტირებები, გაუგებარი
+              საკითხების გამოსავლენად და დასაძლევად.
+            </p>
+          </div>
+
+          <!-- Item 3 -->
+          <div class="about-box" data-aos="fade-up" data-aos-delay="300">
+            <div class="about-icon"><i class="fa-solid fa-headset"></i></div>
+            <h3>მუდმივი მხარდაჭერა</h3>
+            <p>
+              დახურულ ჯგუფში ნებისმიერ დროს შეგიძლიათ დასვათ კითხვები და მიიღოთ
+              ამომწურავი პასუხები ჩვენი პედაგოგებისგან.
+            </p>
+          </div>
+
+          <!-- Item 4 -->
+          <div class="about-box" data-aos="fade-up" data-aos-delay="400">
+            <div class="about-icon">
+              <i class="fa-solid fa-hand-holding-dollar"></i>
+            </div>
+            <h3>ხელმისაწვდომი ფასი</h3>
+            <p>
+              ხარისხიანი განათლება ყველასთვის! ვცდილობთ ფინანსური პრობლემა არ
+              იყოს ხელის შემშლელი, ამიტომ გვაქვს მინიმალური გადასახადი.
+            </p>
+          </div>
+
+          <!-- Item 5 -->
+          <div class="about-box" data-aos="fade-up" data-aos-delay="500">
+            <div class="about-icon"><i class="fa-solid fa-users"></i></div>
+            <h3>კმაყოფილი მოსწავლეები</h3>
+            <p>
+              უკვე უამრავ მოსწავლეს ვეხმარებით წარმატების მიღწევაში. მშობლებისა
+              და ბავშვების შეფასებები ამტკიცებს, რომ პროექტმა გაამართლა!
+            </p>
+          </div>
+
+          <!-- Item 6 -->
+          <div class="about-box" data-aos="fade-up" data-aos-delay="600">
+            <div class="about-icon">
+              <i class="fa-solid fa-calendar-check"></i>
+            </div>
+            <h3>მოქნილი გრაფიკი</h3>
+            <p>
+              მოსწავლეს ვიდეოების ნახვა ნებისმიერ დროს შეუძლია, რამდენჯერაც
+              მოესურვება. აღარ ინერვიულებთ გაცდენილ გაკვეთილებზე.
+            </p>
+          </div>
+        </div>
+
+        <div style="text-align: center; margin-top: 50px" data-aos="fade-up">
+          <a
+            href="#courses-section"
+            class="btn primary"
+            style="
+              font-size: 18px;
+              padding: 15px 30px;
+              border-radius: 30px;
+              box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            "
+            >აირჩიეთ თქვენი სკოლის სახელმძღვანელო</a
+          >
+        </div>
+      </div>
+    </section>
+
+    <!-- Pricing Section -->
+
+    <section class="pricing">
+      <div class="container">
+        <!-- Section Header -->
+        <div class="common-header" data-aos="zoom-in">
+          <h2 class="heading">
+            ფასები და <span class="highlight">პაკეტები</span>
+          </h2>
+          <p><span class="save">-20% ფასდაკლება</span> 1 წლიანი გამოწერისას!</p>
+          <br />
+        </div>
+
+        <!-- Pricing Cards -->
+        <div
+          class="pricing-grid"
+          style="
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            max-width: 800px;
+            margin: 0 auto;
+          "
+        >
+          <!-- Monthly -->
+          <div class="price-card" data-aos="fade-left">
+            <h3>ყოველთვიური</h3>
+            <h1>50₾ <span>/ თვეში</span></h1>
+            <p class="desc">
+              სრული წვდომა პლატფორმაზე, ვიდეო გაკვეთილებსა და ტესტირებებზე
+            </p>
+            <hr />
+
+            <ul>
+              <li><i class="fa fa-check"></i> ყველა ვიდეო გაკვეთილი</li>
+              <li><i class="fa fa-check"></i> ყოველკვირეული ტესტირებები</li>
+              <li><i class="fa fa-check"></i> პირადი პროგრესის კონტროლი</li>
+            </ul>
+
+            <button class="btn outline">შემოგვიერთდი</button>
+          </div>
+
+          <!-- Yearly (Active) -->
+          <div
+            class="price-card active"
+            data-aos="fade-right"
+            style="position: relative"
+          >
+            <div
+              style="
+                background: linear-gradient(90deg, #fcd34d 0%, #dc2626 100%);
+                color: white;
+                padding: 6px 18px;
+                border-radius: 30px;
+                display: inline-block;
+                font-size: 14px;
+                font-weight: bold;
+                margin-bottom: 10px;
+                box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+                text-transform: uppercase;
+              "
+            >
+              🔥 -20% ფასდაკლება
+            </div>
+            <h3 style="margin-top: 5px">1 წლიანი გამოწერა</h3>
+            <div
+              style="
+                display: flex;
+                align-items: baseline;
+                justify-content: center;
+                gap: 10px;
+              "
+            >
+              <span
+                style="
+                  font-size: 24px;
+                  color: #a1a1aa;
+                  text-decoration: line-through;
+                "
+                >500₾</span
+              >
+              <h1>400₾ <span>/ წელიწადში</span></h1>
+            </div>
+            <p class="desc">
+              მიიღე სრული წვდომა მთელი წლის განმავლობაში -20% ფასდაკლებით
+            </p>
+            <hr />
+
+            <ul>
+              <li><i class="fa fa-check"></i> ყველა ვიდეო გაკვეთილი</li>
+              <li><i class="fa fa-check"></i> ყოველკვირეული ტესტირებები</li>
+              <li><i class="fa fa-check"></i> დაზოგე 100 ლარი</li>
+            </ul>
+
+            <button class="btn primary">შემოგვიერთდი</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section
+      class="testimonial-section"
+      style="
+        background: linear-gradient(
+          135deg,
+          #1e3c72 0%,
+          #2a5298 50%,
+          var(--blue) 100%
+        );
+        position: relative;
+        overflow: hidden;
+      "
+    >
+      <!-- Decorative background elements -->
+      <div
+        style="
+          position: absolute;
+          top: -50px;
+          left: -50px;
+          width: 200px;
+          height: 200px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 50%;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          bottom: -100px;
+          right: -50px;
+          width: 300px;
+          height: 300px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 50%;
+        "
+      ></div>
+      <div
+        style="
+          position: absolute;
+          top: 50%;
+          left: 20%;
+          width: 100px;
+          height: 100px;
+          background: rgba(255, 255, 255, 0.03);
+          border-radius: 50%;
+          transform: translateY(-50%);
+        "
+      ></div>
+
+      <div class="container" style="position: relative; z-index: 1">
+        <!-- Header -->
+        <div class="section-header" data-aos="zoom-in">
+          <h2 class="heading" style="width: 400px; color: white">
+            რას ამბობენ <br />მშობლები ჩვენზე
+          </h2>
+          <p style="max-width: 400px; width: 100%; color: #f9f9f9">
+            გაეცანით იმ მშობლების შეფასებებს, რომელთა შვილებმაც უკვე
+            გაიუმჯობესეს მათემატიკური უნარები ჩვენი პლატფორმის დახმარებით.
+          </p>
+        </div>
+
+        <!-- Slider -->
+        <div class="swiper testimonialSwiper" data-aos="fade-left">
+          <div class="swiper-wrapper">
+            <!-- Slide 1 -->
+            <div class="swiper-slide">
+              <div class="testimonial-card">
+                <div>
+                  <h4>საუკეთესო მიდგომა</h4>
+                  <p>
+                    ჩემი შვილი მე-6 კლასშია და მათემატიკა ყოველთვის უჭირდა.
+                    თქვენი ვიდეოების ყურება რომ დაიწყო, სკოლაში ნიშნები
+                    გაუუმჯობესდა. ძალიან მომწონს, რომ სკოლის წიგნს მიჰყვებით!
+                  </p>
+                </div>
+
+                <div>
+                  <div class="divider"></div>
+                  <div class="user">
+                    <img src="{% static 'image/t1.jpg' %}" />
+                    <div>
+                      <div class="name">ნინო მახარაძე</div>
+                      <div class="stars">★★★★★</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Slide 2 -->
+            <div class="swiper-slide">
+              <div class="testimonial-card">
+                <div>
+                  <h4>შესანიშნავი პლატფორმა</h4>
+                  <p>
+                    მადლობა ყოველკვირეული LIVE ჩართვებისთვის. ბავშვმა ისწავლა
+                    როგორ გაუმკლავდეს რთულ ამოცანებს. ფასი იმდენად
+                    ხელმისაწვდომია, რომ ყველას ვურჩევ!
+                  </p>
+                </div>
+
+                <div>
+                  <div class="divider"></div>
+                  <div class="user">
+                    <img src="{% static 'image/t2.jpg' %}" />
+                    <div>
+                      <div class="name">მაკა წერეთელი</div>
+                      <div class="stars">★★★★★</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Slide 3 -->
+            <div class="swiper-slide">
+              <div class="testimonial-card">
+                <div>
+                  <h4>ძალიან მოსახერხებელია</h4>
+                  <p>
+                    სხვადასხვა წრეებზე დადის და რეპეტიტორთან სიარულის დრო არ
+                    ჰქონდა. ახლა კი, თავისუფალ დროს უყურებს ვიდეოებს და მასალას
+                    საერთოდ არ ჩამორჩება.
+                  </p>
+                </div>
+
+                <div>
+                  <div class="divider"></div>
+                  <div class="user">
+                    <img src="{% static 'image/t3.jpg' %}" />
+                    <div>
+                      <div class="name">გიორგი ჩხაიძე</div>
+                      <div class="stars">★★★★★</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Slide 4 -->
+            <div class="swiper-slide">
+              <div class="testimonial-card">
+                <div>
+                  <h4>უმაღლესი ხარისხი</h4>
+                  <p>
+                    ტესტირებები ძალიან გვეხმარება იმის კონტროლში, თუ რა გაიგო და
+                    რაში სჭირდება დახმარება. ნამდვილად საუკეთესო პროექტია
+                    მოსწავლეებისთვის საქართველოში!
+                  </p>
+                </div>
+
+                <div>
+                  <div class="divider"></div>
+                  <div class="user">
+                    <img src="{% static 'image/t1.jpg' %}" />
+                    <div>
+                      <div class="name">სოფიო კვირიკაშვილი</div>
+                      <div class="stars">★★★★★</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section
+      class="faq-section"
+      style="padding: 100px 20px 40px; background: #fff"
+    >
+      <div class="container" data-aos="fade-up">
+        <div
+          class="section-top"
+          style="margin-bottom: 50px; text-align: center"
+        >
+          <small class="subtitle">კითხვები</small>
+          <h2 class="heading">
+            ხშირად დასმული <span class="highlight">შეკითხვები</span>
+          </h2>
+          <p
+            class="desc"
+            style="max-width: 600px; margin: 20px auto 0; text-align: center"
+          >
+            აქ თავმოყრილია კითხვები, რომლებიც ხშირად უჩნდებათ მშობლებსა და
+            მოსწავლეებს ჩვენი პლატფორმის შესახებ.
+          </p>
+        </div>
+
+        <div class="faq-accordion" style="max-width: 800px; margin: 0 auto">
+          <!-- FAQ Item 1 -->
+          <div class="faq-item active">
+            <div
+              class="faq-header"
+              onclick="this.parentElement.classList.toggle('active')"
+            >
+              <span>როგორ მიმდინარეობს სწავლების პროცესი?</span>
+              <i class="bx bx-chevron-down"></i>
+            </div>
+            <div class="faq-body">
+              <p>
+                მოსწავლეებს აქვთ წვდომა წინასწარ ჩაწერილ, მაღალი ხარისხის ვიდეო
+                გაკვეთილებზე. მათ შეუძლიათ უყურონ ვიდეოებს მათთვის სასურველ
+                დროს, ნებისმიერი ადგილიდან, და დამოუკიდებლად შეასრულონ
+                სავარჯიშოები.
+              </p>
+            </div>
+          </div>
+
+          <!-- FAQ Item 2 -->
+          <div class="faq-item">
+            <div
+              class="faq-header"
+              onclick="this.parentElement.classList.toggle('active')"
+            >
+              <span>რომელი კლასებისთვის გაქვთ კურსები?</span>
+              <i class="bx bx-chevron-down"></i>
+            </div>
+            <div class="faq-body">
+              <p>
+                ამჟამად ჩვენი პლატფორმა გთავაზობთ სრულ სასკოლო პროგრამას IV-IX
+                კლასის მოსწავლეებისთვის! სამომავლოდ ვგეგმავთ სხვა კლასების
+                დამატებასაც.
+              </p>
+            </div>
+          </div>
+
+          <!-- FAQ Item 3 -->
+          <div class="faq-item">
+            <div
+              class="faq-header"
+              onclick="this.parentElement.classList.toggle('active')"
+            >
+              <span>უფასოა თუ ფასიანი?</span>
+              <i class="bx bx-chevron-down"></i>
+            </div>
+            <div class="faq-body">
+              <p>
+                კურსების პირველი გაკვეთილები ხელმისაწვდომია უფასოდ, ხოლო სრული
+                პროგრამის გასახსნელად საჭიროა ყოველთვიური ან წლიური გამოწერის
+                გააქტიურება ხელმისაწვდომ ფასად.
+              </p>
+            </div>
+          </div>
+
+          <!-- FAQ Item 4 -->
+          <div class="faq-item">
+            <div
+              class="faq-header"
+              onclick="this.parentElement.classList.toggle('active')"
+            >
+              <span>რა მოწყობილობებია საჭირო კურსის გასავლელად?</span>
+              <i class="bx bx-chevron-down"></i>
+            </div>
+            <div class="faq-body">
+              <p>
+                კურსების გავლა შესაძლებელია ნებისმიერი მოწყობილობიდან.
+                დაგჭირდებათ მხოლოდ ინტერნეტთან კავშირი და კომპიუტერი, პლანშეტი
+                ან მობილური ტელეფონი.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Contact Section -->
+
+    <section
+      class="contact-section"
+      style="padding: 40px 20px 100px; text-align: center; background: #f9fbfd"
+    >
+      <div class="container" data-aos="zoom-in">
+        <h2
+          class="heading"
+          style="
+            font-size: 32px;
+            max-width: 600px;
+            margin: 0 auto;
+            line-height: 1.4;
+          "
+        >
+          მოგვწერეთ <span class="highlight">ფეისბუქ</span> გვერდზე ან
+          <span class="highlight">დაგვირეკეთ</span>
+        </h2>
+        <br />
+        <div
+          style="
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+          "
+        >
+          <a
+            href="#"
+            class="btn primary"
+            style="
+              display: inline-flex;
+              align-items: center;
+              gap: 10px;
+              font-size: 18px;
+              padding: 15px 30px;
+              background: #1877f2;
+              border-color: #1877f2;
+              color: #fff;
+            "
+          >
+            <i class="bx bxl-facebook-square" style="font-size: 24px"></i>
+            ფეისბუქი
+          </a>
+          <a
+            href="tel:+995555123456"
+            class="btn primary"
+            style="
+              display: inline-flex;
+              align-items: center;
+              gap: 10px;
+              font-size: 18px;
+              padding: 15px 30px;
+            "
+          >
+            <i class="bx bxs-phone-call" style="font-size: 24px"></i> +995 555
+            12 34 56
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer
+      style="
+        background-color: #0b0c10;
+        padding: 60px 20px 30px;
+        text-align: center;
+        border-top: 1px solid #1f2937;
+      "
+    >
+      <div class="container">
+        <!-- Logo -->
+        <a
+          href="{% url 'home' %}"
+          class="logo"
+          style="
+            margin-bottom: 30px;
+            font-size: 26px;
+            font-weight: 700;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+          "
+        >
+          <img src="{% static 'image/logo.webp' %}" alt="მათემატიკა მარტივად" style="height:40px; margin-right:8px; vertical-align:middle; filter: brightness(0) saturate(100%) invert(60%) sepia(16%) saturate(600%) hue-rotate(183deg) brightness(97%) contrast(87%);" />
+          <span>მათემატიკა მარტივად</span>
+        </a>
+
+        <!-- Links -->
+        <ul
+          style="
+            list-style: none;
+            padding: 0;
+            margin: 0 0 40px;
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+          "
+        >
+          <li>
+            <a
+              href="#"
+              style="
+                text-decoration: none;
+                color: #9ca3af;
+                font-weight: 600;
+                font-size: 16px;
+                transition: color 0.3s;
+              "
+              onmouseover="this.style.color = '#ffffff'"
+              onmouseout="this.style.color = '#9ca3af'"
+              >მთავარი</a
+            >
+          </li>
+          <li>
+            <a
+              href="#"
+              style="
+                text-decoration: none;
+                color: #9ca3af;
+                font-weight: 600;
+                font-size: 16px;
+                transition: color 0.3s;
+              "
+              onmouseover="this.style.color = '#ffffff'"
+              onmouseout="this.style.color = '#9ca3af'"
+              >ჩვენ შესახებ</a
+            >
+          </li>
+          <li>
+            <a
+              href="#"
+              style="
+                text-decoration: none;
+                color: #9ca3af;
+                font-weight: 600;
+                font-size: 16px;
+                transition: color 0.3s;
+              "
+              onmouseover="this.style.color = '#ffffff'"
+              onmouseout="this.style.color = '#9ca3af'"
+              >კურსები</a
+            >
+          </li>
+          <li>
+            <a
+              href="#"
+              style="
+                text-decoration: none;
+                color: #9ca3af;
+                font-weight: 600;
+                font-size: 16px;
+                transition: color 0.3s;
+              "
+              onmouseover="this.style.color = '#ffffff'"
+              onmouseout="this.style.color = '#9ca3af'"
+              >გვერდები</a
+            >
+          </li>
+          <li>
+            <a
+              href="#"
+              style="
+                text-decoration: none;
+                color: #9ca3af;
+                font-weight: 600;
+                font-size: 16px;
+                transition: color 0.3s;
+              "
+              onmouseover="this.style.color = '#ffffff'"
+              onmouseout="this.style.color = '#9ca3af'"
+              >ბლოგი</a
+            >
+          </li>
+          <li>
+            <a
+              href="#"
+              style="
+                text-decoration: none;
+                color: #9ca3af;
+                font-weight: 600;
+                font-size: 16px;
+                transition: color 0.3s;
+              "
+              onmouseover="this.style.color = '#ffffff'"
+              onmouseout="this.style.color = '#9ca3af'"
+              >კონტაქტი</a
+            >
+          </li>
+        </ul>
+
+        <!-- Copyright -->
+        <div
+          style="
+            color: #6b7280;
+            font-size: 15px;
+            border-top: 1px solid #1f2937;
+            padding-top: 30px;
+          "
+        >
+          &copy; 2026 მათემატიკა მარტივად. ყველა უფლება დაცულია.
+        </div>
+      </div>
+
+      <a
+        class="scroll-top"
+        href="#top"
+        style="
+          position: fixed;
+          bottom: 30px;
+          right: 30px;
+          background: #0072ff;
+          color: #fff;
+          width: 45px;
+          height: 45px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: 50%;
+          font-size: 24px;
+          text-decoration: none;
+          box-shadow: 0 4px 15px rgba(0, 114, 255, 0.4);
+        "
+      >
+        <i class="bx bx-chevron-up"></i>
+      </a>
+    </footer>
+
+    <!-- Swiper JS -->
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <!-- AOS Js-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/aos/2.3.4/aos.js"></script>
+    <!-- Custom Js-->
+    <script src="{% static 'js/custom.js' %}"></script>
+  </body>
+</html>
