@@ -5,7 +5,23 @@ from payments.models import UserCourseAccess
 
 def course_list(request):
     courses = Course.objects.all()
-    return render(request, 'courses/index.html', {'courses': courses})
+    user_purchased_course_ids = set()
+    if request.user.is_authenticated:
+        if request.user.is_staff or request.user.is_superuser:
+            user_purchased_course_ids = set(courses.values_list('id', flat=True))
+        else:
+            now = timezone.now()
+            user_purchased_course_ids = set(
+                UserCourseAccess.objects.filter(
+                    user=request.user,
+                    is_active=True,
+                    expires_at__gt=now
+                ).values_list('course_id', flat=True)
+            )
+    return render(request, 'courses/index.html', {
+        'courses': courses,
+        'user_purchased_course_ids': user_purchased_course_ids,
+    })
 
 def course_detail(request, pk):
     course = get_object_or_404(Course, pk=pk)

@@ -528,15 +528,15 @@
               });
           }
 
-          // Auto-scroll directly to curriculum section when navigating from catalogue or 'ჩემი გაკვეთილები'
-          if (window.location.hash === '#curriculum-section'{% if has_access %} || true{% endif %}) {
-              const curriculumEl = document.getElementById('curriculum-section');
-              if (curriculumEl) {
-                  setTimeout(function() {
-                      curriculumEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }, 150);
-              }
+          // Auto-scroll directly to curriculum section ONLY if user has purchased the course
+          {% if has_access %}
+          const curriculumEl = document.getElementById('curriculum-section');
+          if (curriculumEl) {
+              setTimeout(function() {
+                  curriculumEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 150);
           }
+          {% endif %}
       });
     </script>
   </body>

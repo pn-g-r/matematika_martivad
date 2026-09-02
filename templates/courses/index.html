@@ -585,7 +585,7 @@
         <div class="course-grid" data-aos="fade-right">
           {% for course in courses %}
           <a
-            href="{% url 'course_detail' course.pk %}#curriculum-section"
+            href="{% url 'course_detail' course.pk %}{% if course.id in user_purchased_course_ids %}#curriculum-section{% endif %}"
             class="course-card"
             style="text-decoration: none; color: inherit; display: block"
           >
