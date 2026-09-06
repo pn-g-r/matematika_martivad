@@ -92,6 +92,54 @@ class PaymentsWorkflowTests(TestCase):
         self.assertContains(response, 'ყოველთვიური გამოწერა')
         self.assertContains(response, '1-წლიანი სრული პაკეტი')
 
+    def test_pricing_without_course_requires_catalog_selection(self):
+        user_no_grade = User.objects.create_user(
+            username='555999888',
+            phone_number='555999888',
+            password='Password123!@#',
+            student_name='ანა ბერიძე',
+            parent_name='მარიამ ბერიძე',
+            grade='',
+            book_author='გოგიშვილი',
+        )
+        self.client.force_login(user_no_grade)
+        response = self.client.get(reverse('payments:pricing'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'კატალოგში გადასვლა')
+        self.assertContains(response, 'ჯერ აირჩიეთ კურსი კატალოგიდან')
+        self.assertNotContains(response, 'name="course_id"')
+
+    def test_callback_accepts_amount_stored_on_order(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_LEGACY_PRICE_001',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('45.00'),
+            amount_tetri=4500,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.PROCESSING,
+        )
+        callback_params = {
+            'order_id': order.order_id,
+            'merchant_id': 1549901,
+            'amount': '4500',
+            'currency': 'GEL',
+            'order_status': 'approved',
+            'response_status': 'success',
+            'payment_id': 777888999,
+        }
+        callback_params['signature'] = generate_flitt_signature(callback_params, secret_key='test')
+        response = self.client.post(
+            reverse('payments:flitt_callback'),
+            data=callback_params,
+            content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.APPROVED)
+
     def test_checkout_init_requires_login(self):
         response = self.client.post(reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}), data={'course_id': self.course.id})
         self.assertEqual(response.status_code, 302)
@@ -219,6 +267,7 @@ class PaymentsWorkflowTests(TestCase):
         self.assertTrue(access.is_valid_now())
         self.assertEqual(access.plan_type, PlanType.MONTHLY)
         self.assertEqual(access.rectoken, 'REC_TOKEN_XYZ_999')
+        self.assertEqual(access.subscription_order_id, order.order_id)
         self.assertTrue(access.expires_at > timezone.now() + timedelta(days=28))
 
     def test_callback_approved_grants_yearly_access(self):
@@ -581,6 +630,7 @@ class PaymentsWorkflowTests(TestCase):
             starts_at=timezone.now(),
             expires_at=timezone.now() + timedelta(days=30),
             last_order=order,
+            subscription_order_id='MM_SUB_TO_CANCEL',
         )
         self.client.force_login(self.user)
         res = self.client.post(reverse('payments:cancel_subscription'), data={'course_id': self.course.id})
@@ -590,6 +640,80 @@ class PaymentsWorkflowTests(TestCase):
         self.assertFalse(access.auto_renew)
         self.assertTrue(access.is_active)
         self.assertTrue(access.is_valid_now())
+
+    @patch.object(FlittPaymentClient, 'cancel_subscription')
+    def test_cancel_uses_root_subscription_order_not_renewal_child(self, mock_cancel):
+        mock_cancel.return_value = {'response_status': 'success', 'status': 'disabled'}
+        root_order = PaymentOrder.objects.create(
+            order_id='MM_SUB_ROOT_001',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.APPROVED,
+        )
+        renewal_order = PaymentOrder.objects.create(
+            order_id='MM_SUB_RENEWAL_002',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.APPROVED,
+        )
+        access = UserCourseAccess.objects.create(
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=True,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+            last_order=renewal_order,
+            subscription_order_id='MM_SUB_ROOT_001',
+        )
+        self.client.force_login(self.user)
+        res = self.client.post(reverse('payments:cancel_subscription'), data={'course_id': self.course.id})
+        self.assertEqual(res.status_code, 302)
+        mock_cancel.assert_called_once_with('MM_SUB_ROOT_001')
+        access.refresh_from_db()
+        self.assertFalse(access.auto_renew)
+
+    @patch.object(FlittPaymentClient, 'cancel_subscription')
+    def test_cancel_does_not_succeed_on_response_status_only(self, mock_cancel):
+        mock_cancel.return_value = {'response_status': 'success', 'status': 'active'}
+        order = PaymentOrder.objects.create(
+            order_id='MM_SUB_FALSE_CANCEL',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.APPROVED,
+        )
+        access = UserCourseAccess.objects.create(
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=True,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+            last_order=order,
+            subscription_order_id=order.order_id,
+        )
+        self.client.force_login(self.user)
+        res = self.client.post(reverse('payments:cancel_subscription'), data={'course_id': self.course.id})
+        self.assertEqual(res.status_code, 302)
+        access.refresh_from_db()
+        self.assertTrue(access.auto_renew)
 
     def test_form_urlencoded_callback_parsing(self):
         order = PaymentOrder.objects.create(
@@ -722,6 +846,57 @@ class PaymentsWorkflowTests(TestCase):
         self.assertEqual(res.status_code, 302)
         # Ensure no orders were created
         self.assertFalse(PaymentOrder.objects.filter(order_id__startswith='MM_C999999').exists())
+
+    @patch.object(FlittPaymentClient, 'create_checkout_session')
+    def test_checkout_blocked_when_user_has_active_access(self, mock_flitt):
+        mock_flitt.return_value = {
+            'response_status': 'success',
+            'checkout_url': 'https://pay.flitt.com/checkout/should_not_open',
+        }
+        UserCourseAccess.objects.create(
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=True,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=20),
+        )
+        self.client.force_login(self.user)
+        res = self.client.post(
+            reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}),
+            data={'course_id': self.course.id},
+        )
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res.url, reverse('payments:pricing'))
+        mock_flitt.assert_not_called()
+        self.assertFalse(
+            PaymentOrder.objects.filter(user=self.user, status=OrderStatus.PROCESSING).exists()
+        )
+
+    def test_fulfill_access_if_needed_is_idempotent(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_FULFILL_IDEM',
+            user=self.user,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            currency='GEL',
+            is_subscription=True,
+            status=OrderStatus.APPROVED,
+            flitt_payment_id='111222333',
+        )
+        self.assertTrue(order.fulfill_access_if_needed(payment_id='111222333'))
+        access = UserCourseAccess.objects.get(user=self.user, course=self.course)
+        initial_expiry = access.expires_at
+        order.refresh_from_db()
+        self.assertIsNotNone(order.access_granted_at)
+        self.assertEqual(order.fulfilled_payment_id, '111222333')
+
+        self.assertFalse(order.fulfill_access_if_needed(payment_id='111222333'))
+        access.refresh_from_db()
+        self.assertEqual(access.expires_at, initial_expiry)
 
     def test_cancel_subscription_rejects_get_request(self):
         self.client.force_login(self.user)

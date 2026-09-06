@@ -41,6 +41,26 @@ def generate_flitt_signature(params: dict, secret_key: str = None) -> str:
     return hashlib.sha1(sign_string.encode('utf-8')).hexdigest().lower()
 
 
+def parse_flitt_subscription_data(data_field):
+    """Parse subscription checkout `data` from SDK (JSON string or dict)."""
+    if isinstance(data_field, dict):
+        return data_field
+    if isinstance(data_field, str):
+        return json.loads(data_field)
+    raise TypeError(f"Unexpected Flitt subscription data type: {type(data_field)}")
+
+
+def is_flitt_subscription_stopped(res: dict) -> bool:
+    """
+    True only when Flitt reports the subscription schedule is actually stopped.
+    response_status=success means the API request was accepted, not that billing stopped.
+    """
+    if not isinstance(res, dict):
+        return False
+    status = (res.get('status') or '').lower()
+    return status in ('disabled', 'canceled')
+
+
 def verify_flitt_signature(params: dict, secret_key: str = None) -> bool:
     """
     Validate the signature received in a callback or response from Flitt.
@@ -67,6 +87,7 @@ class FlittPaymentClient:
         response_url: str,
         currency: str = "GEL",
         is_subscription: bool = False,
+        subscription_callback_url: str = None,
         sender_email: str = None,
         recurring_data: dict = None,
     ) -> dict:
@@ -101,6 +122,7 @@ class FlittPaymentClient:
                     "order_desc": order_desc,
                     "response_url": response_url,
                     "server_callback_url": server_callback_url,
+                    "subscription_callback_url": subscription_callback_url or server_callback_url,
                     "recurring_data": rec_payload,
                 }
                 if sender_email:
@@ -114,8 +136,8 @@ class FlittPaymentClient:
                 if isinstance(res, dict):
                     if "data" in res:
                         try:
-                            parsed_data = json.loads(res["data"])
-                            order_dict = parsed_data.get("order", {})
+                            parsed_data = parse_flitt_subscription_data(res["data"])
+                            order_dict = parsed_data.get("order", parsed_data)
                             checkout_url = order_dict.get("checkout_url", "")
                             payment_id = str(order_dict.get("payment_id", ""))
                             payment_token = order_dict.get("token", "")
@@ -238,11 +260,15 @@ class FlittPaymentClient:
             )
             checkout = Checkout(api=api)
             res = checkout.subscription_stop(order_id=order_id)
-            status = getattr(res, 'status', '') or (res.get('status', '') if isinstance(res, dict) else '')
-            response_status = getattr(res, 'response_status', '') or (res.get('response_status', '') if isinstance(res, dict) else 'success')
+            if isinstance(res, dict):
+                return {
+                    "response_status": res.get('response_status', ''),
+                    "status": res.get('status', ''),
+                    "raw": res,
+                }
             return {
-                "response_status": response_status or "success",
-                "status": status,
+                "response_status": getattr(res, 'response_status', '') or '',
+                "status": getattr(res, 'status', '') or '',
                 "raw": str(res),
             }
         except Exception as exc:

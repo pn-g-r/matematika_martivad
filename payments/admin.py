@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.utils.html import mark_safe
-from .models import PaymentOrder, UserCourseAccess
+from .models import PaymentOrder, UserCourseAccess, PlanType
+from .flitt_service import is_flitt_subscription_stopped
 
 @admin.register(PaymentOrder)
 class PaymentOrderAdmin(admin.ModelAdmin):
@@ -41,6 +42,8 @@ class PaymentOrderAdmin(admin.ModelAdmin):
         'response_code',
         'response_description',
         'raw_response',
+        'access_granted_at',
+        'fulfilled_payment_id',
         'created_at',
         'updated_at',
     )
@@ -91,12 +94,11 @@ class PaymentOrderAdmin(admin.ModelAdmin):
                         order.flitt_payment_id = str(payment_id)
                     order.save()
                     if order.course:
-                        UserCourseAccess.grant_or_renew_access(
-                            user=order.user,
-                            course=order.course,
-                            plan_type=order.plan_type,
-                            payment_order=order,
+                        sub_root = order.order_id if order.is_subscription and order.plan_type == PlanType.MONTHLY else None
+                        order.fulfill_access_if_needed(
                             rectoken=rectoken,
+                            subscription_order_id=sub_root,
+                            payment_id=str(payment_id) if payment_id else order.flitt_payment_id,
                         )
                     updated_count += 1
                 elif remote_status in ('declined', 'expired', 'reversed'):
@@ -107,12 +109,8 @@ class PaymentOrderAdmin(admin.ModelAdmin):
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         if obj.status == 'approved' and obj.course:
-            UserCourseAccess.grant_or_renew_access(
-                user=obj.user,
-                course=obj.course,
-                plan_type=obj.plan_type,
-                payment_order=obj,
-            )
+            sub_root = obj.order_id if obj.is_subscription and obj.plan_type == PlanType.MONTHLY else None
+            obj.fulfill_access_if_needed(subscription_order_id=sub_root)
 
 
 @admin.register(UserCourseAccess)
@@ -123,6 +121,7 @@ class UserCourseAccessAdmin(admin.ModelAdmin):
         'plan_type',
         'get_active_badge',
         'auto_renew',
+        'subscription_order_id',
         'starts_at',
         'expires_at',
         'created_at',
@@ -134,6 +133,7 @@ class UserCourseAccessAdmin(admin.ModelAdmin):
         'user__phone_number',
         'course__title',
         'rectoken',
+        'subscription_order_id',
     )
     readonly_fields = ('created_at', 'updated_at')
     ordering = ('-expires_at',)
@@ -144,13 +144,27 @@ class UserCourseAccessAdmin(admin.ModelAdmin):
         from .flitt_service import FlittPaymentClient
         client = FlittPaymentClient()
         cancelled_count = 0
+        failed_count = 0
         for access in queryset:
-            if access.last_order:
-                client.cancel_subscription(access.last_order.order_id)
-            access.auto_renew = False
-            access.save(update_fields=['auto_renew', 'updated_at'])
-            cancelled_count += 1
-        self.message_user(request, f"გამოწერა წარმატებით გაუქმდა {cancelled_count} მომხმარებლისთვის.")
+            sub_order_id = access.get_subscription_order_id()
+            if sub_order_id:
+                res = client.cancel_subscription(sub_order_id)
+                if is_flitt_subscription_stopped(res):
+                    access.auto_renew = False
+                    access.save(update_fields=['auto_renew', 'updated_at'])
+                    cancelled_count += 1
+                else:
+                    failed_count += 1
+            else:
+                failed_count += 1
+        if failed_count:
+            self.message_user(
+                request,
+                f"გამოწერა გაუქმდა {cancelled_count} მომხმარებლისთვის. {failed_count} ჩანაწერზე Flitt-მა disabled არ დაადასტურა.",
+                level='warning',
+            )
+        else:
+            self.message_user(request, f"გამოწერა წარმატებით გაუქმდა {cancelled_count} მომხმარებლისთვის.")
 
     @admin.display(description="მომხმარებელი")
     def get_user_display(self, obj):

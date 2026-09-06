@@ -210,6 +210,11 @@
           <p>
             მიიღეთ შეუზღუდავი წვდომა სასურველი კურსის ყველა ვიდეო-გაკვეთილზე, ამოცანის დეტალურ ამოხსნასა და დამატებით მასალებზე.
           </p>
+          <div style="background: rgba(251, 191, 36, 0.12); border: 1px solid rgba(251, 191, 36, 0.35); border-radius: 12px; padding: 14px 20px; max-width: 560px; margin: 20px auto 0 auto; color: #fbbf24; font-size: 15px; font-weight: 600;">
+            <i class="fa-solid fa-circle-info" style="margin-right: 8px;"></i>
+            გადასახდელად ჯერ აირჩიეთ კურსი კატალოგიდან.
+            <a href="{% url 'home' %}" style="display: inline-block; margin-top: 10px; color: #0f172a; background: #fcd34d; padding: 8px 14px; border-radius: 8px; text-decoration: none; font-weight: 700;">კატალოგში გადასვლა →</a>
+          </div>
           {% endif %}
         </div>
 
@@ -252,6 +257,12 @@
         </div>
         {% endif %}
 
+        {% if course_access and course_access.is_valid_now %}
+        <p style="text-align: center; max-width: 800px; margin: 0 auto 24px; color: #94a3b8; font-size: 14px;">
+          ახალი გადახდის ღილაკები დამალულია, რადგან უკვე გაქვთ აქტიური წვდომა არჩეულ კურსზე.
+        </p>
+        {% endif %}
+
         <div class="pricing-cards">
           <!-- Monthly Subscription (50 GEL / month) -->
           <div class="pricing-card">
@@ -275,15 +286,21 @@
               </ul>
             </div>
 
-            <form method="post" action="{% url 'payments:checkout_init' plan_type='monthly' %}" style="margin: 0; width: 100%;">
+            {% if selected_course %}
+              {% if not course_access or not course_access.is_valid_now %}
+            <form method="post" action="{% url 'payments:checkout_init' plan_type='monthly' %}" style="margin: 0; width: 100%;" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
               {% csrf_token %}
-              {% if selected_course %}
               <input type="hidden" name="course_id" value="{{ selected_course.id }}">
-              {% endif %}
               <button type="submit" class="btn-subscribe primary-blue" style="border: none; cursor: pointer; font-family: inherit;">
                 <i class="fa-solid fa-credit-card" style="margin-right: 8px;"></i> გამოწერა (50 ₾)
               </button>
             </form>
+              {% else %}
+            <p style="text-align: center; color: #64748b; font-size: 14px; margin: 0;">გაქვთ აქტიური წვდომა</p>
+              {% endif %}
+            {% else %}
+            <p style="text-align: center; color: #64748b; font-size: 14px; margin: 0;">ჯერ აირჩიეთ კურსი კატალოგიდან</p>
+            {% endif %}
           </div>
 
           <!-- Yearly Plan (400 GEL / year) -->
@@ -309,15 +326,21 @@
               </ul>
             </div>
 
-            <form method="post" action="{% url 'payments:checkout_init' plan_type='yearly' %}" style="margin: 0; width: 100%;">
+            {% if selected_course %}
+              {% if not course_access or not course_access.is_valid_now %}
+            <form method="post" action="{% url 'payments:checkout_init' plan_type='yearly' %}" style="margin: 0; width: 100%;" onsubmit="this.querySelector('button[type=submit]').disabled=true;">
               {% csrf_token %}
-              {% if selected_course %}
               <input type="hidden" name="course_id" value="{{ selected_course.id }}">
-              {% endif %}
               <button type="submit" class="btn-subscribe primary-gold" style="border: none; cursor: pointer; font-family: inherit;">
                 <i class="fa-solid fa-bolt" style="margin-right: 8px;"></i> შეძენა (400 ₾)
               </button>
             </form>
+              {% else %}
+            <p style="text-align: center; color: #64748b; font-size: 14px; margin: 0;">გაქვთ აქტიური წვდომა</p>
+              {% endif %}
+            {% else %}
+            <p style="text-align: center; color: #64748b; font-size: 14px; margin: 0;">ჯერ აირჩიეთ კურსი კატალოგიდან</p>
+            {% endif %}
           </div>
         </div>
       </div>

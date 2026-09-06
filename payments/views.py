@@ -13,7 +13,7 @@ from django.utils import timezone
 from django.conf import settings
 from .models import PaymentOrder, UserCourseAccess, PlanType, OrderStatus
 from courses.models import Course
-from .flitt_service import FlittPaymentClient, verify_flitt_signature
+from .flitt_service import FlittPaymentClient, verify_flitt_signature, is_flitt_subscription_stopped
 
 logger = logging.getLogger(__name__)
 
@@ -61,9 +61,6 @@ def pricing_view(request):
     if not selected_course and request.user.is_authenticated and getattr(request.user, 'grade', None):
         selected_course = Course.objects.filter(grade=request.user.grade).first()
 
-    if not selected_course:
-        selected_course = Course.objects.first()
-
     if request.user.is_authenticated and selected_course:
         course_access = UserCourseAccess.objects.filter(user=request.user, course=selected_course).first()
 
@@ -92,6 +89,20 @@ def checkout_init_view(request, plan_type):
 
     if not selected_course:
         messages.error(request, "გთხოვთ აირჩიოთ კურსი კატალოგიდან.")
+        return redirect('payments:pricing')
+
+    existing_access = UserCourseAccess.objects.filter(
+        user=request.user,
+        course=selected_course,
+        is_active=True,
+    ).first()
+    if existing_access and existing_access.is_valid_now():
+        expiry = existing_access.expires_at.strftime('%Y-%m-%d')
+        messages.info(
+            request,
+            f"თქვენ უკვე გაქვთ აქტიური წვდომა კურსზე „{selected_course.title}“ {expiry}-მდე. "
+            "ახალი გადახდის გაკეთება არ არის საჭირო.",
+        )
         return redirect('payments:pricing')
 
     plan_info = PLANS_CONFIG[plan_type]
@@ -130,6 +141,7 @@ def checkout_init_view(request, plan_type):
         amount_tetri=order.amount_tetri,
         order_desc=order.order_desc,
         server_callback_url=server_callback_url,
+        subscription_callback_url=server_callback_url,
         response_url=response_url,
         currency=order.currency,
         is_subscription=order.is_subscription,
@@ -227,10 +239,19 @@ def flitt_callback_view(request):
             .first()
         )
         if parent_order:
-            try:
-                amount_tetri = int(data.get('amount') or parent_order.amount_tetri)
-            except (ValueError, TypeError):
-                amount_tetri = parent_order.amount_tetri
+            expected_tetri = parent_order.amount_tetri
+            callback_amount_raw = data.get('amount')
+            if callback_amount_raw is not None:
+                try:
+                    if int(callback_amount_raw) != expected_tetri:
+                        logger.error(
+                            "Renewal amount mismatch for parent %s: expected %s tetri, got %s",
+                            parent_order.order_id, expected_tetri, callback_amount_raw,
+                        )
+                        return HttpResponse("Amount mismatch", status=400)
+                except (ValueError, TypeError):
+                    logger.error("Invalid renewal amount for parent %s: %s", parent_order.order_id, callback_amount_raw)
+                    return HttpResponse("Invalid amount", status=400)
 
             order = (
                 PaymentOrder.objects.select_for_update()
@@ -239,14 +260,14 @@ def flitt_callback_view(request):
             )
             if not order:
                 try:
-                    with transaction.atomic():
+                    with transaction.atomic(savepoint=True):
                         order = PaymentOrder.objects.create(
                             order_id=order_id,
                             user=parent_order.user,
                             course=parent_order.course,
                             plan_type=parent_order.plan_type,
-                            amount_gel=Decimal(str(amount_tetri / 100)),
-                            amount_tetri=amount_tetri,
+                            amount_gel=parent_order.amount_gel,
+                            amount_tetri=expected_tetri,
                             currency=data.get('currency') or parent_order.currency,
                             order_desc=f"ავტომატური განახლება - {parent_order.order_desc}",
                             is_subscription=True,
@@ -259,16 +280,17 @@ def flitt_callback_view(request):
         logger.error("PaymentOrder %s (parent: %s) not found for Flitt callback.", order_id, parent_order_id)
         return HttpResponse("Order not found", status=404)
 
-    # 2. AMOUNT & CURRENCY INTEGRITY CHECK
+    # 2. AMOUNT & CURRENCY INTEGRITY CHECK (against amount stored on this order)
     callback_amount = data.get('amount')
     callback_currency = data.get('currency')
+    expected_tetri = order.amount_tetri
 
     if callback_amount is not None:
         try:
-            if int(callback_amount) != order.amount_tetri:
+            if int(callback_amount) != expected_tetri:
                 logger.error(
                     "Amount mismatch for order %s: expected %s tetri, got %s",
-                    order.order_id, order.amount_tetri, callback_amount
+                    order.order_id, expected_tetri, callback_amount
                 )
                 return HttpResponse("Amount mismatch", status=400)
         except (ValueError, TypeError):
@@ -299,28 +321,56 @@ def flitt_callback_view(request):
         return HttpResponse("OK", status=200)
 
     if order_status == 'approved':
+        new_payment_id = str(data.get('payment_id', '') or '')
+        subscription_root_id = None
+        if order.plan_type == PlanType.MONTHLY and order.is_subscription:
+            subscription_root_id = parent_order_id or order.order_id
+
         # IDEMPOTENCY SAFEGUARD:
         # If this order has already been marked APPROVED, acknowledge without re-granting access.
         if order.status == OrderStatus.APPROVED:
+            is_renewal_on_same_order = (
+                order.is_subscription
+                and order.plan_type == PlanType.MONTHLY
+                and new_payment_id
+                and order.flitt_payment_id
+                and new_payment_id != order.flitt_payment_id
+            )
+            if is_renewal_on_same_order:
+                order.flitt_payment_id = new_payment_id
+                order.masked_card = str(data.get('masked_card', '') or order.masked_card or '')
+                order.card_type = str(data.get('card_type', '') or order.card_type or '')
+                order.raw_response = data
+                order.save()
+                if order.fulfill_access_if_needed(
+                    rectoken=data.get('rectoken', ''),
+                    subscription_order_id=subscription_root_id,
+                    payment_id=new_payment_id,
+                ):
+                    logger.info(
+                        "Renewal on root order %s (payment_id %s) extended access for user %s",
+                        order.order_id, new_payment_id, order.user,
+                    )
+                return HttpResponse("OK", status=200)
+
             logger.info("Order %s was already approved. Acknowledging callback without re-granting access.", order.order_id)
             return HttpResponse("OK", status=200)
 
         order.status = OrderStatus.APPROVED
         order.save()
         rectoken = data.get('rectoken', '')
-        course = order.course
 
-        if not course:
+        if not order.course:
             logger.error("Order %s approved by Flitt, but has no associated course! Refusing to assign random course.", order.order_id)
-        else:
-            UserCourseAccess.grant_or_renew_access(
-                user=order.user,
-                course=course,
-                plan_type=order.plan_type,
-                payment_order=order,
-                rectoken=rectoken,
+        elif order.fulfill_access_if_needed(
+            rectoken=rectoken,
+            subscription_order_id=subscription_root_id,
+            payment_id=new_payment_id or order.flitt_payment_id,
+        ):
+            logger.info(
+                "Order %s approved! Granted %s access for course '%s' to user %s",
+                order.order_id, order.plan_type, order.course.title, order.user,
             )
-            logger.info("Order %s approved! Granted %s access for course '%s' to user %s", order.order_id, order.plan_type, course.title, order.user)
     elif order_status in ('declined', 'expired', 'reversed', 'processing'):
         order.status = order_status
         order.save()
@@ -393,23 +443,27 @@ def cancel_subscription_view(request):
             return redirect(next_url)
         return redirect('payments:pricing')
 
-    order = active_access.last_order
+    subscription_order_id = active_access.get_subscription_order_id()
     cancel_success = False
 
-    if order:
+    if subscription_order_id:
         client = FlittPaymentClient()
-        res = client.cancel_subscription(order.order_id)
-        logger.info("Subscription cancellation for order %s result: %s", order.order_id, res)
-        if isinstance(res, dict) and (
-            res.get('response_status') == 'success' or
-            res.get('status') in ('disabled', 'canceled')
-        ):
-            cancel_success = True
-        else:
-            logger.error("Flitt returned failure when canceling order %s: %s", order.order_id, res)
-            cancel_success = False
+        res = client.cancel_subscription(subscription_order_id)
+        logger.info(
+            "Subscription cancellation for root order %s result: %s",
+            subscription_order_id, res,
+        )
+        cancel_success = is_flitt_subscription_stopped(res)
+        if not cancel_success:
+            logger.error(
+                "Flitt did not confirm subscription disabled for order %s: %s",
+                subscription_order_id, res,
+            )
     else:
-        cancel_success = True
+        logger.error(
+            "Cannot cancel subscription for user %s course %s: no root subscription order ID",
+            request.user, active_access.course_id,
+        )
 
     if cancel_success:
         active_access.auto_renew = False
