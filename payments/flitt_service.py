@@ -10,6 +10,9 @@ from flittpayments import Api, Checkout
 
 logger = logging.getLogger(__name__)
 
+# Monthly subscription runs for 12 charges (= 1 year), then stops at Flitt.
+SUBSCRIPTION_MONTHLY_CHARGE_COUNT = 12
+
 def generate_flitt_signature(params: dict, secret_key: str = None) -> str:
     """
     Generate SHA1 signature for Flitt request or response parameters.
@@ -90,6 +93,7 @@ class FlittPaymentClient:
         subscription_callback_url: str = None,
         sender_email: str = None,
         recurring_data: dict = None,
+        lang: str = None,
     ) -> dict:
         """
         Create a Flitt hosted checkout order for one-time payments (v1.0)
@@ -111,10 +115,12 @@ class FlittPaymentClient:
                     "period": "month",
                     "amount": amount_tetri,
                     "start_time": start_date,
+                    "quantity": SUBSCRIPTION_MONTHLY_CHARGE_COUNT,
                     "readonly": "y",
-                    "state": "y",
+                    "state": "shown_readonly",
                 }
 
+                checkout_lang = lang or getattr(settings, 'FLITT_CHECKOUT_LANG', 'ka')
                 sub_data = {
                     "order_id": order_id,
                     "amount": amount_tetri,
@@ -124,6 +130,7 @@ class FlittPaymentClient:
                     "server_callback_url": server_callback_url,
                     "subscription_callback_url": subscription_callback_url or server_callback_url,
                     "recurring_data": rec_payload,
+                    "lang": checkout_lang,
                 }
                 if sender_email:
                     sub_data["sender_email"] = sender_email
@@ -174,6 +181,7 @@ class FlittPaymentClient:
                 )
                 checkout = Checkout(api=api)
 
+                checkout_lang = lang or getattr(settings, 'FLITT_CHECKOUT_LANG', 'ka')
                 order_data = {
                     "order_id": order_id,
                     "amount": amount_tetri,
@@ -181,6 +189,7 @@ class FlittPaymentClient:
                     "order_desc": order_desc,
                     "response_url": response_url,
                     "server_callback_url": server_callback_url,
+                    "lang": checkout_lang,
                 }
                 if sender_email:
                     order_data["sender_email"] = sender_email

@@ -142,6 +142,7 @@ FLITT_MERCHANT_ID = config('FLITT_MERCHANT_ID', default=1549901, cast=int)
 FLITT_SECRET_KEY = config('FLITT_SECRET_KEY', default='test')
 FLITT_CHECKOUT_URL = config('FLITT_CHECKOUT_URL', default='https://pay.flitt.com/api/checkout/url')
 FLITT_CURRENCY = 'GEL'
+FLITT_CHECKOUT_LANG = config('FLITT_CHECKOUT_LANG', default='ka')
 
 # Production / Reverse Proxy SSL & Domain Configuration
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

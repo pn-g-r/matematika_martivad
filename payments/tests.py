@@ -60,6 +60,57 @@ class FlittSignatureTests(TestCase):
         self.assertEqual(sig1, sig2)
 
 
+class FlittCheckoutConfigTests(TestCase):
+    @patch('payments.flitt_service.Checkout')
+    @patch('payments.flitt_service.Api')
+    def test_subscription_checkout_mandatory_schedule_and_georgian(self, _mock_api, mock_checkout_cls):
+        mock_checkout = mock_checkout_cls.return_value
+        mock_checkout.subscription.return_value = {
+            'checkout_url': 'https://pay.flitt.com/checkout/sub_token',
+            'payment_id': '123',
+        }
+
+        client = FlittPaymentClient()
+        result = client.create_checkout_session(
+            order_id='MM_TEST_SUB',
+            amount_tetri=5000,
+            order_desc='Test subscription',
+            server_callback_url='http://example.com/callback/',
+            response_url='http://example.com/response/',
+            is_subscription=True,
+        )
+
+        self.assertEqual(result['response_status'], 'success')
+        sub_data = mock_checkout.subscription.call_args[0][0]
+        self.assertEqual(sub_data['lang'], 'ka')
+        self.assertEqual(sub_data['recurring_data']['state'], 'shown_readonly')
+        self.assertEqual(sub_data['recurring_data']['quantity'], 12)
+
+    @patch('payments.flitt_service.Checkout')
+    @patch('payments.flitt_service.Api')
+    def test_onetime_checkout_uses_georgian(self, _mock_api, mock_checkout_cls):
+        mock_checkout = mock_checkout_cls.return_value
+        mock_checkout.url.return_value = {
+            'response_status': 'success',
+            'checkout_url': 'https://pay.flitt.com/checkout/year_token',
+            'payment_id': '456',
+        }
+
+        client = FlittPaymentClient()
+        result = client.create_checkout_session(
+            order_id='MM_TEST_YEAR',
+            amount_tetri=40000,
+            order_desc='Test yearly',
+            server_callback_url='http://example.com/callback/',
+            response_url='http://example.com/response/',
+            is_subscription=False,
+        )
+
+        self.assertEqual(result['response_status'], 'success')
+        order_data = mock_checkout.url.call_args[0][0]
+        self.assertEqual(order_data['lang'], 'ka')
+
+
 class PaymentsWorkflowTests(TestCase):
     def setUp(self):
         self.client = Client()
