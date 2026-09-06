@@ -23,5 +23,6 @@ urlpatterns = [
     path("_nested_admin/", include("nested_admin.urls")),
     path("accounts/", include("accounts.urls")),
     path("payments/", include("payments.urls")),
+    path("dashboard/", include("dashboard.urls")),
     path("", include("courses.urls")),
 ]

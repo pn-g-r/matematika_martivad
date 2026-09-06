@@ -496,7 +496,43 @@ class PaymentsWorkflowTests(TestCase):
         res = self.client.get(reverse('home'))
         self.assertContains(res, 'ჩემი გაკვეთილები')
         self.assertNotContains(res, 'განაგრძეთ მეცადინეობა')
+        self.assertNotContains(res, 'data-my-lessons-dropdown')
         self.assertContains(res, reverse('course_detail', kwargs={'pk': course.id}))
+
+    def test_paid_student_my_lessons_dropdown_with_two_or_more_courses(self):
+        course_a = Course.objects.create(
+            title='VI კლასის მათემატიკა',
+            grade='VI',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+            order=1,
+        )
+        course_b = Course.objects.create(
+            title='VII კლასის მათემატიკა',
+            grade='VII',
+            short_description='Short',
+            long_description='Long',
+            instructor_name='გიორგი',
+            duration='30 სთ',
+            lessons_count=10,
+            video_url='https://youtube.com/embed/test',
+            price=Decimal('50.00'),
+            order=2,
+        )
+        UserCourseAccess.grant_or_renew_access(user=self.user, course=course_a, plan_type=PlanType.MONTHLY)
+        UserCourseAccess.grant_or_renew_access(user=self.user, course=course_b, plan_type=PlanType.MONTHLY)
+        self.client.force_login(self.user)
+        res = self.client.get(reverse('home'))
+        self.assertContains(res, 'ჩემი გაკვეთილები')
+        self.assertContains(res, 'data-my-lessons-dropdown')
+        self.assertContains(res, 'აირჩიეთ კურსი')
+        self.assertContains(res, course_a.title)
+        self.assertContains(res, course_b.title)
 
     def test_callback_idempotency_does_not_double_access_duration(self):
         order = PaymentOrder.objects.create(

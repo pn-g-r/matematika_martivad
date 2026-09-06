@@ -1,0 +1,788 @@
+{% extends "dashboard/base.html" %}
+
+{% block title %}მოსწავლეები{% endblock %}
+
+{% block extra_css %}
+<style>
+  .dash-page-head {
+    margin-bottom: 16px;
+  }
+  .dash-title {
+    margin: 0 0 4px;
+    font-size: 22px;
+    color: #0f172a;
+  }
+  .dash-subtitle {
+    color: #64748b;
+    margin: 0;
+    font-size: 13px;
+  }
+  .dash-layout {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .dash-table-area {
+    flex: 1;
+    min-width: 0;
+  }
+  .dash-filters {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+  }
+  .dash-filters__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-right: 2px;
+  }
+  .filter-pills {
+    display: flex;
+    gap: 4px;
+  }
+  .filter-pill {
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    text-decoration: none;
+    color: #475569;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    white-space: nowrap;
+  }
+  .filter-pill:hover {
+    border-color: #cbd5e1;
+    color: #0284c7;
+  }
+  .filter-pill.is-active {
+    background: #0284c7;
+    border-color: #0284c7;
+    color: #fff;
+  }
+  .filter-pills.is-search-mode .filter-pill {
+    opacity: 0.65;
+  }
+  .dash-filters__divider {
+    width: 1px;
+    height: 24px;
+    background: #e2e8f0;
+    flex-shrink: 0;
+  }
+  .filter-course-select {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+  }
+  .filter-course-select.is-search-mode {
+    opacity: 0.65;
+  }
+  .filter-course-select select {
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    color: #1e293b;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    min-width: 160px;
+    max-width: 240px;
+  }
+  .filter-course-select select.is-active {
+    border-color: #0284c7;
+    color: #0284c7;
+    background: #eff6ff;
+    font-weight: 600;
+  }
+  .students-table-wrap {
+    overflow-x: auto;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    background: #fff;
+  }
+  .students-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .students-table th,
+  .students-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid #eef2f6;
+    vertical-align: middle;
+  }
+  .students-table th {
+    color: #64748b;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: #f8fafc;
+  }
+  .students-table tbody tr {
+    cursor: pointer;
+  }
+  .students-table tbody tr:hover td {
+    background: #f8fafc;
+  }
+  .students-table tbody tr.is-selected td {
+    background: #eff6ff;
+  }
+  .student-name {
+    font-weight: 600;
+    color: #0f172a;
+    white-space: nowrap;
+  }
+  .muted {
+    color: #64748b;
+    font-size: 12px;
+  }
+  .cell-inline {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 180px;
+  }
+  .courses-drop {
+    position: relative;
+    display: inline-block;
+  }
+  .courses-drop__btn {
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+    color: #475569;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .courses-drop__btn:hover {
+    border-color: #cbd5e1;
+    background: #e2e8f0;
+  }
+  .courses-drop__btn.is-empty {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #b45309;
+  }
+  .courses-drop__menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 20;
+    min-width: 200px;
+    max-width: 280px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+    padding: 6px;
+  }
+  .courses-drop.is-open .courses-drop__menu {
+    display: block;
+  }
+  .courses-drop__item {
+    display: block;
+    padding: 6px 8px;
+    font-size: 12px;
+    color: #334155;
+    border-radius: 4px;
+  }
+  .courses-drop__item.is-active { color: #047857; font-weight: 600; }
+  .courses-drop__item.is-expired { color: #94a3b8; }
+  .courses-drop__item small {
+    display: block;
+    color: #94a3b8;
+    font-weight: 400;
+    margin-top: 2px;
+  }
+  .grant-panel {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+  }
+  .dash-sidebar {
+    width: 240px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: sticky;
+    top: 16px;
+    align-self: flex-start;
+  }
+  .grant-panel__title {
+    margin: 0 0 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .student-search {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 14px;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05);
+    position: relative;
+    z-index: 20;
+    transition: width 0.2s ease, margin-left 0.2s ease, box-shadow 0.2s ease;
+  }
+  .student-search.is-expanded {
+    width: calc(100% + 220px);
+    margin-left: -220px;
+    z-index: 50;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+  }
+  .student-search__form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .student-search__row {
+    display: flex;
+    gap: 4px;
+  }
+  .search-field-picker {
+    position: relative;
+    flex-shrink: 0;
+  }
+  .search-field-picker__btn {
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
+    color: #334155;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    max-width: 118px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .search-field-picker__btn.is-active {
+    border-color: #0284c7;
+    color: #0284c7;
+    background: #eff6ff;
+  }
+  .search-field-picker__menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    z-index: 30;
+    min-width: 170px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.1);
+    padding: 4px;
+  }
+  .search-field-picker.is-open .search-field-picker__menu {
+    display: block;
+  }
+  .search-field-picker__option {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: none;
+    padding: 6px 8px;
+    font-size: 12px;
+    color: #334155;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  .search-field-picker__option:hover,
+  .search-field-picker__option.is-selected {
+    background: #eff6ff;
+    color: #0284c7;
+  }
+  .student-search__input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    transition: flex 0.2s ease, min-width 0.2s ease;
+  }
+  .student-search.is-expanded .student-search__input {
+    flex: 1 1 auto;
+    min-width: 120px;
+  }
+  .student-search.is-expanded .search-field-picker__btn {
+    max-width: 96px;
+  }
+  .student-search__input:disabled {
+    background: #f1f5f9;
+    color: #94a3b8;
+  }
+  .student-search__submit {
+    background: #0284c7;
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .student-search__submit:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+  }
+  .student-search__clear {
+    font-size: 11px;
+    color: #64748b;
+    text-decoration: none;
+    align-self: flex-start;
+  }
+  .student-search__clear:hover { color: #0284c7; }
+  .grant-panel__student {
+    margin: 0 0 10px;
+    padding: 8px 10px;
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #64748b;
+    min-height: 34px;
+    line-height: 1.35;
+  }
+  .grant-panel__student.has-selection {
+    border-style: solid;
+    border-color: #bfdbfe;
+    background: #eff6ff;
+    color: #1e40af;
+    font-weight: 600;
+  }
+  .grant-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .grant-form .field-full {
+    grid-column: 1 / -1;
+  }
+  .grant-form label {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 3px;
+  }
+  .grant-form select {
+    width: 100%;
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    color: #1e293b;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+  }
+  .grant-form button {
+    grid-column: 1 / -1;
+    background: #10b981;
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .grant-form button:hover:not(:disabled) { background: #059669; }
+  .grant-form button:disabled {
+    background: #cbd5e1;
+    cursor: not-allowed;
+  }
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+  .pagination a,
+  .pagination span {
+    padding: 6px 12px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 13px;
+  }
+  .pagination a {
+    background: #ffffff;
+    color: #475569;
+    border: 1px solid #e2e8f0;
+  }
+  .pagination a:hover { border-color: #0284c7; color: #0284c7; }
+  .pagination .current {
+    background: #0284c7;
+    color: #ffffff;
+    font-weight: 700;
+  }
+  @media (max-width: 960px) {
+    .dash-layout {
+      flex-direction: column;
+    }
+    .dash-sidebar {
+      width: 100%;
+      position: static;
+    }
+    .grant-panel {
+      width: 100%;
+    }
+    .student-search.is-expanded {
+      width: 100%;
+      margin-left: 0;
+    }
+    .student-search.is-expanded .student-search__row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .student-search.is-expanded .student-search__input {
+      min-width: 0;
+      width: 100%;
+    }
+    .grant-form {
+      grid-template-columns: 1fr 1fr auto;
+    }
+    .grant-form button {
+      grid-column: auto;
+      align-self: end;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dash-card">
+  <div class="dash-page-head">
+    <h1 class="dash-title">მოსწავლეები</h1>
+    <p class="dash-subtitle">
+      ნაჩვენები {{ total_students }} · გვერდზე {{ page_obj.paginator.per_page }} · უახლესი ჩარიცხვით
+    </p>
+  </div>
+
+  <div class="dash-layout">
+    <div class="dash-table-area">
+      <div class="dash-filters">
+        <div class="filter-pills{% if search_active %} is-search-mode{% endif %}">
+          <a href="{{ url_filter_all }}" class="filter-pill{% if filter_status == 'all' and not search_active %} is-active{% endif %}">ყველა</a>
+          <a href="{{ url_filter_enrolled }}" class="filter-pill{% if filter_status == 'enrolled' and not search_active %} is-active{% endif %}">ჩარიცხული</a>
+          <a href="{{ url_filter_not_enrolled }}" class="filter-pill{% if filter_status == 'not_enrolled' and not search_active %} is-active{% endif %}">არა ჩარიცხული</a>
+        </div>
+        <div class="dash-filters__divider" aria-hidden="true"></div>
+        <form method="get" class="filter-course-select{% if search_active %} is-search-mode{% endif %}">
+          {% if filter_status != 'all' and not search_active %}
+          <input type="hidden" name="status" value="{{ filter_status }}" />
+          {% endif %}
+          <select name="course" id="filter-course" class="{% if filter_course %}is-active{% endif %}" aria-label="კურსი" onchange="this.form.submit()">
+            <option value="">— ყველა კურსი —</option>
+            {% for course in courses %}
+            <option value="{{ course.pk }}"{% if filter_course == course.pk %} selected{% endif %}>{{ course.title }}</option>
+            {% endfor %}
+          </select>
+        </form>
+      </div>
+
+      <div class="students-table-wrap">
+        <table class="students-table">
+          <thead>
+            <tr>
+              <th>მოსწავლე</th>
+              <th>კლ.</th>
+              <th>მშობელი / ტელ.</th>
+              <th>კურსები</th>
+              <th>რეგ.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for student in students %}
+            <tr
+              class="student-row"
+              data-user-id="{{ student.pk }}"
+              data-student-name="{{ student.student_name|default:student.username }}"
+            >
+              <td><span class="student-name">{{ student.student_name|default:student.username }}</span></td>
+              <td>{{ student.get_grade_display|default:student.grade|default:"—" }}</td>
+              <td class="cell-inline">
+                <span class="muted">{{ student.parent_name|default:"—" }} · {{ student.phone_number|default:"—" }}</span>
+              </td>
+              <td onclick="event.stopPropagation();">
+                <div class="courses-drop" data-courses-dropdown>
+                  {% if student.active_accesses %}
+                  <button type="button" class="courses-drop__btn" data-courses-toggle>
+                    {{ student.active_accesses|length }} კურსი ▾
+                  </button>
+                  <div class="courses-drop__menu">
+                    {% for access in student.active_accesses %}
+                    <div class="courses-drop__item {% if access.is_valid_now %}is-active{% else %}is-expired{% endif %}">
+                      {{ access.course.title }}
+                      <small>{{ access.expires_at|date:"Y-m-d" }}-მდე</small>
+                    </div>
+                    {% endfor %}
+                  </div>
+                  {% else %}
+                  <button type="button" class="courses-drop__btn is-empty" disabled>0 კურსი</button>
+                  {% endif %}
+                </div>
+              </td>
+              <td class="muted" style="white-space: nowrap;">
+                {{ student.date_joined|date:"Y-m-d" }}
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="text-align: center; color: #64748b; padding: 32px;">მოსწავლეები ჯერ არ არის.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="pagination" aria-label="Pagination">
+        {% if page_obj.has_previous %}
+        <a href="?{% if list_query %}{{ list_query }}&amp;{% endif %}page=1">«</a>
+        <a href="?{% if list_query %}{{ list_query }}&amp;{% endif %}page={{ page_obj.previous_page_number }}">‹</a>
+        {% endif %}
+        <span class="current">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?{% if list_query %}{{ list_query }}&amp;{% endif %}page={{ page_obj.next_page_number }}">›</a>
+        <a href="?{% if list_query %}{{ list_query }}&amp;{% endif %}page={{ page_obj.paginator.num_pages }}">»</a>
+        {% endif %}
+      </nav>
+      {% endif %}
+    </div>
+
+    <div class="dash-sidebar">
+    <aside class="grant-panel">
+      <h2 class="grant-panel__title">წვდომის მინიჭება</h2>
+
+      <div id="grant-selected-student" class="grant-panel__student">აირჩიეთ მოსწავლე ცხრილიდან</div>
+      <form
+        id="grant-access-form"
+        method="post"
+        action=""
+        class="grant-form"
+        data-grant-url="{% url 'dashboard:grant_access' user_id=0 %}"
+      >
+        {% csrf_token %}
+        <input type="hidden" name="page" value="{{ page_obj.number }}" />
+        <input type="hidden" name="list_status" value="{{ filter_status }}" />
+        <input type="hidden" name="list_course" value="{{ filter_course }}" />
+        <input type="hidden" name="list_search_field" value="{{ search_field }}" />
+        <input type="hidden" name="list_search_q" value="{{ search_q }}" />
+        <div class="field-full">
+          <label for="grant-course">კურსი</label>
+          <select name="course" id="grant-course" required disabled>
+            <option value="">— აირჩიეთ —</option>
+            {% for course in grant_form.fields.course.queryset %}
+            <option value="{{ course.pk }}">{{ course.title }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label for="grant-plan">პაკეტი</label>
+          <select name="plan_type" id="grant-plan" disabled>
+            {% for value, label in grant_form.fields.plan_type.choices %}
+            <option value="{{ value }}"{% if value == grant_form.fields.plan_type.initial %} selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div style="align-self: end;">
+          <button type="submit" id="grant-submit" disabled>მინიჭება</button>
+        </div>
+      </form>
+    </aside>
+
+    <div class="student-search">
+      <form method="get" class="student-search__form" id="student-search-form">
+        <input type="hidden" name="search_field" id="search-field-input" value="{{ search_field }}" />
+        <div class="student-search__row">
+          <div class="search-field-picker{% if search_field %} is-ready{% endif %}" id="search-field-picker">
+            <button type="button" class="search-field-picker__btn{% if search_field %} is-active{% endif %}" id="search-field-btn" title="ძებნის ველი">
+              {{ search_field_label|truncatechars:14 }} ▾
+            </button>
+            <div class="search-field-picker__menu">
+              {% for key, label in search_fields.items %}
+              <button
+                type="button"
+                class="search-field-picker__option{% if search_field == key %} is-selected{% endif %}"
+                data-search-field="{{ key }}"
+                data-search-label="{{ label }}"
+              >{{ label }}</button>
+              {% endfor %}
+            </div>
+          </div>
+          <input
+            type="text"
+            name="search_q"
+            id="search-q-input"
+            class="student-search__input"
+            value="{{ search_q }}"
+            placeholder="ტექსტი..."
+            {% if not search_field %}disabled{% endif %}
+          />
+          <button type="submit" class="student-search__submit" id="search-submit-btn" {% if not search_field %}disabled{% endif %}>ძებნა</button>
+        </div>
+        {% if search_field and search_q %}
+        <a href="{{ url_clear_search }}" class="student-search__clear">ძებნის გასუფთავება</a>
+        {% endif %}
+      </form>
+    </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var form = document.getElementById("grant-access-form");
+  var grantUrlTemplate = form.dataset.grantUrl;
+  var selectedEl = document.getElementById("grant-selected-student");
+  var courseSelect = document.getElementById("grant-course");
+  var planSelect = document.getElementById("grant-plan");
+  var submitBtn = document.getElementById("grant-submit");
+  var rows = document.querySelectorAll(".student-row");
+  var tableWrap = document.querySelector(".students-table-wrap");
+  var grantSidebar = document.querySelector(".dash-sidebar");
+  var filterBar = document.querySelector(".dash-filters");
+
+  function selectStudent(row) {
+    rows.forEach(function (r) { r.classList.remove("is-selected"); });
+    row.classList.add("is-selected");
+    var userId = row.dataset.userId;
+    var name = row.dataset.studentName;
+    form.action = grantUrlTemplate.replace("/0/", "/" + userId + "/");
+    selectedEl.textContent = name;
+    selectedEl.classList.add("has-selection");
+    courseSelect.disabled = false;
+    planSelect.disabled = false;
+    submitBtn.disabled = false;
+  }
+
+  function clearSelection() {
+    rows.forEach(function (r) { r.classList.remove("is-selected"); });
+    form.action = "";
+    selectedEl.textContent = "აირჩიეთ მოსწავლე ცხრილიდან";
+    selectedEl.classList.remove("has-selection");
+    courseSelect.disabled = true;
+    planSelect.disabled = true;
+    submitBtn.disabled = true;
+    courseSelect.value = "";
+  }
+
+  rows.forEach(function (row) {
+    row.addEventListener("click", function () { selectStudent(row); });
+  });
+
+  document.querySelectorAll("[data-courses-dropdown]").forEach(function (root) {
+    var toggle = root.querySelector("[data-courses-toggle]");
+    if (!toggle) return;
+    toggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var wasOpen = root.classList.contains("is-open");
+      document.querySelectorAll("[data-courses-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
+        el.classList.remove("is-open");
+      });
+      if (!wasOpen) root.classList.add("is-open");
+    });
+  });
+
+  var searchFieldPicker = document.getElementById("search-field-picker");
+  var searchFieldInput = document.getElementById("search-field-input");
+  var searchFieldBtn = document.getElementById("search-field-btn");
+  var searchQInput = document.getElementById("search-q-input");
+  var searchSubmitBtn = document.getElementById("search-submit-btn");
+  var searchForm = document.getElementById("student-search-form");
+  var searchBox = document.querySelector(".student-search");
+
+  function expandSearchInput() {
+    if (searchBox && searchQInput && !searchQInput.disabled) {
+      searchBox.classList.add("is-expanded");
+    }
+  }
+
+  function collapseSearchInput() {
+    if (searchBox) searchBox.classList.remove("is-expanded");
+  }
+
+  if (searchQInput && searchBox) {
+    searchQInput.addEventListener("focus", expandSearchInput);
+    searchQInput.addEventListener("click", expandSearchInput);
+    if (searchForm) {
+      searchForm.addEventListener("submit", collapseSearchInput);
+    }
+  }
+
+  if (searchFieldPicker && searchFieldBtn) {
+    searchFieldBtn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var wasOpen = searchFieldPicker.classList.contains("is-open");
+      document.querySelectorAll("[data-courses-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
+        el.classList.remove("is-open");
+      });
+      if (!wasOpen) searchFieldPicker.classList.add("is-open");
+    });
+
+    searchFieldPicker.querySelectorAll("[data-search-field]").forEach(function (option) {
+      option.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var field = option.dataset.searchField;
+        var label = option.dataset.searchLabel;
+        searchFieldInput.value = field;
+        searchFieldBtn.textContent = label + " ▾";
+        searchFieldBtn.classList.add("is-active");
+        searchFieldPicker.classList.remove("is-open");
+        searchFieldPicker.classList.add("is-ready");
+        searchQInput.disabled = false;
+        searchSubmitBtn.disabled = false;
+        expandSearchInput();
+        searchQInput.focus();
+        searchFieldPicker.querySelectorAll(".search-field-picker__option").forEach(function (el) {
+          el.classList.toggle("is-selected", el.dataset.searchField === field);
+        });
+      });
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    document.querySelectorAll("[data-courses-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
+      el.classList.remove("is-open");
+    });
+    if (searchBox && !searchBox.contains(e.target)) {
+      collapseSearchInput();
+    }
+    if (
+      tableWrap && grantSidebar &&
+      !tableWrap.contains(e.target) &&
+      !grantSidebar.contains(e.target) &&
+      !(filterBar && filterBar.contains(e.target))
+    ) {
+      clearSelection();
+    }
+  });
+
+  if (rows.length === 1) {
+    selectStudent(rows[0]);
+  }
+})();
+</script>
+{% endblock %}
