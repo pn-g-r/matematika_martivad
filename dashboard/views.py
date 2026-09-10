@@ -12,7 +12,8 @@ from urllib.parse import urlencode
 from courses.models import Course
 from payments.models import PlanType, UserCourseAccess
 
-from .forms import GrantCourseAccessForm
+from .forms import GrantCourseAccessForm, StudentCommentForm
+from .models import StudentComment
 
 User = get_user_model()
 STUDENTS_PER_PAGE = 20
@@ -56,6 +57,7 @@ def _student_queryset(status='all', course_id=None, search_field='', search_q=''
         .select_related('course')
         .order_by('-expires_at')
     )
+    comments_qs = StudentComment.objects.select_related("author").order_by("-created_at")
     qs = (
         User.objects.filter(is_staff=False, is_superuser=False)
         .annotate(
@@ -63,7 +65,10 @@ def _student_queryset(status='all', course_id=None, search_field='', search_q=''
             has_valid_enrollment=Exists(_valid_access_subquery(now)),
         )
         .order_by(F('latest_enrollment').desc(nulls_last=True), '-date_joined')
-        .prefetch_related(Prefetch('course_accesses', queryset=active_access_qs, to_attr='active_accesses'))
+        .prefetch_related(
+            Prefetch('course_accesses', queryset=active_access_qs, to_attr='active_accesses'),
+            Prefetch('staff_comments', queryset=comments_qs, to_attr='staff_comment_list'),
+        )
     )
 
     has_search = search_field in SEARCH_FIELDS and bool((search_q or '').strip())
@@ -130,6 +135,24 @@ def _students_list_url(page=None, status='all', course_id=None, search_field='',
     return url
 
 
+def _list_redirect_from_post(request):
+    list_status = request.POST.get('list_status', 'all')
+    list_course = request.POST.get('list_course', '').strip()
+    list_course_id = int(list_course) if list_course.isdigit() else None
+    list_search_field = request.POST.get('list_search_field', '').strip()
+    list_search_q = request.POST.get('list_search_q', '').strip()
+    if list_search_field not in SEARCH_FIELDS:
+        list_search_field = ''
+        list_search_q = ''
+    return _students_list_url(
+        page=request.POST.get('page'),
+        status=list_status,
+        course_id=list_course_id,
+        search_field=list_search_field,
+        search_q=list_search_q,
+    )
+
+
 @staff_required
 def student_list_view(request):
     status, course_id, search_field, search_q = _parse_list_params(request.GET)
@@ -183,27 +206,11 @@ def student_list_view(request):
 def grant_access_view(request, user_id):
     student = get_object_or_404(User, pk=user_id, is_staff=False, is_superuser=False)
     form = GrantCourseAccessForm(request.POST)
-    list_status = request.POST.get('list_status', 'all')
-    list_course = request.POST.get('list_course', '').strip()
-    list_course_id = int(list_course) if list_course.isdigit() else None
-    list_search_field = request.POST.get('list_search_field', '').strip()
-    list_search_q = request.POST.get('list_search_q', '').strip()
-    if list_search_field not in SEARCH_FIELDS:
-        list_search_field = ''
-        list_search_q = ''
-    page = request.POST.get('page')
-
-    redirect_kwargs = dict(
-        page=page,
-        status=list_status,
-        course_id=list_course_id,
-        search_field=list_search_field,
-        search_q=list_search_q,
-    )
+    list_url = _list_redirect_from_post(request)
 
     if not form.is_valid():
         messages.error(request, "წვდომის მინიჭება ვერ მოხერხდა. შეამოწმეთ არჩეული კურსი.")
-        return redirect(_students_list_url(**redirect_kwargs))
+        return redirect(list_url)
 
     course = form.cleaned_data['course']
     plan_type = form.cleaned_data['plan_type']
@@ -228,4 +235,33 @@ def grant_access_view(request, user_id):
             f"{access.expires_at:%Y-%m-%d}-მდე)."
         ),
     )
-    return redirect(_students_list_url(**redirect_kwargs))
+    return redirect(list_url)
+
+
+@staff_required
+@require_POST
+def add_student_comment_view(request, user_id):
+    student = get_object_or_404(User, pk=user_id, is_staff=False, is_superuser=False)
+    form = StudentCommentForm(request.POST)
+    list_url = _list_redirect_from_post(request)
+    if not form.is_valid():
+        messages.error(request, "კომენტარის დამატება ვერ მოხერხდა.")
+        return redirect(list_url)
+
+    StudentComment.objects.create(
+        student=student,
+        author=request.user,
+        text=form.cleaned_data["text"],
+    )
+    messages.success(request, "კომენტარი დამატებულია.")
+    return redirect(list_url)
+
+
+@staff_required
+@require_POST
+def delete_student_comment_view(request, user_id, comment_id):
+    student = get_object_or_404(User, pk=user_id, is_staff=False, is_superuser=False)
+    comment = get_object_or_404(StudentComment, pk=comment_id, student=student)
+    comment.delete()
+    messages.success(request, "კომენტარი წაიშალა.")
+    return redirect(_list_redirect_from_post(request))

@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from courses.models import Course
 from payments.models import PlanType, UserCourseAccess
+from dashboard.models import StudentComment
 
 User = get_user_model()
 
@@ -315,3 +316,71 @@ class DashboardAccessTests(TestCase):
         self.assertEqual(res.status_code, 302)
         self.assertIn('search_field=student_name', res.url)
         self.assertIn('search_q=Old', res.url)
+
+    def test_staff_can_add_and_see_student_comment(self):
+        self.client.force_login(self.staff)
+        res = self.client.post(
+            reverse('dashboard:add_comment', kwargs={'user_id': self.student_old.pk}),
+            data={'text': 'Needs follow-up call'},
+        )
+        self.assertEqual(res.status_code, 302)
+        self.assertTrue(
+            StudentComment.objects.filter(
+                student=self.student_old,
+                text='Needs follow-up call',
+            ).exists()
+        )
+        list_res = self.client.get(reverse('dashboard:students'))
+        self.assertContains(list_res, 'Needs follow-up call')
+        self.assertContains(list_res, 'comment-bell__count')
+
+    def test_staff_can_delete_student_comment(self):
+        comment = StudentComment.objects.create(
+            student=self.student_old,
+            author=self.staff,
+            text='Remove me',
+        )
+        self.client.force_login(self.staff)
+        res = self.client.post(
+            reverse(
+                'dashboard:delete_comment',
+                kwargs={'user_id': self.student_old.pk, 'comment_id': comment.pk},
+            )
+        )
+        self.assertEqual(res.status_code, 302)
+        self.assertFalse(StudentComment.objects.filter(pk=comment.pk).exists())
+
+    def test_empty_comment_is_rejected(self):
+        self.client.force_login(self.staff)
+        res = self.client.post(
+            reverse('dashboard:add_comment', kwargs={'user_id': self.student_old.pk}),
+            data={'text': '   '},
+        )
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(StudentComment.objects.count(), 0)
+
+    def test_cannot_delete_comment_for_wrong_student(self):
+        comment = StudentComment.objects.create(
+            student=self.student_old,
+            author=self.staff,
+            text='Keep me',
+        )
+        self.client.force_login(self.staff)
+        res = self.client.post(
+            reverse(
+                'dashboard:delete_comment',
+                kwargs={'user_id': self.student_new.pk, 'comment_id': comment.pk},
+            )
+        )
+        self.assertEqual(res.status_code, 404)
+        self.assertTrue(StudentComment.objects.filter(pk=comment.pk).exists())
+
+    def test_non_staff_cannot_add_comment(self):
+        self.client.force_login(self.student_old)
+        res = self.client.post(
+            reverse('dashboard:add_comment', kwargs={'user_id': self.student_old.pk}),
+            data={'text': 'Should not work'},
+        )
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/accounts/login', res.url)
+        self.assertEqual(StudentComment.objects.count(), 0)

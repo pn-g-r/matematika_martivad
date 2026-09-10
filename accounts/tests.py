@@ -1,7 +1,13 @@
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from django.utils import timezone
+from datetime import timedelta
+from unittest.mock import patch
 from accounts.forms import CustomUserCreationForm, CustomAuthenticationForm, CustomUserAdminCreationForm, CustomUserAdminChangeForm
+from accounts.models import PasswordResetOTP
+from accounts.password_reset import SESSION_USER_ID
+from accounts.sms import send_otp_sms
 
 User = get_user_model()
 
@@ -308,6 +314,119 @@ class AccountsAuthTests(TestCase):
         response = self.client.get('/admin/accounts/customuser/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'super_changelist_test')
+
+
+class PasswordResetOTPTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(
+            username='555111222',
+            phone_number='555111222',
+            password='OldPassword123!@#',
+            student_name='გიორგი მაისურაძე',
+            parent_name='ნინო მაისურაძე',
+            grade='VI',
+            book_author='გურამ გოგიშვილი',
+        )
+
+    def test_login_page_has_forgot_password_link(self):
+        response = self.client.get(reverse('login'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, reverse('password_reset'))
+
+    def test_password_reset_page_renders(self):
+        response = self.client.get(reverse('password_reset'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'პაროლის აღდგენა')
+
+    @patch('accounts.password_reset.send_otp_sms', return_value=(True, None))
+    @patch('accounts.password_reset.generate_otp', return_value='123456')
+    def test_existing_user_receives_otp_sms(self, _mock_otp, mock_sms):
+        response = self.client.post(reverse('password_reset'), {
+            'phone_number': '555111222',
+        })
+        self.assertRedirects(response, reverse('password_reset_verify'))
+        mock_sms.assert_called_once_with('555111222', '123456')
+        self.assertTrue(
+            PasswordResetOTP.objects.filter(phone_number='555111222', is_used=False).exists()
+        )
+
+    @patch('accounts.password_reset.send_otp_sms')
+    def test_unknown_phone_does_not_send_sms(self, mock_sms):
+        response = self.client.post(reverse('password_reset'), {
+            'phone_number': '599000000',
+        })
+        self.assertRedirects(response, reverse('password_reset_verify'))
+        mock_sms.assert_not_called()
+        self.assertFalse(PasswordResetOTP.objects.filter(phone_number='599000000').exists())
+
+    def test_password_reset_invalid_phone_format(self):
+        response = self.client.post(reverse('password_reset'), {
+            'phone_number': '55511122',
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue('phone_number' in response.context['form'].errors)
+
+    @patch('accounts.password_reset.send_otp_sms', return_value=(True, None))
+    @patch('accounts.password_reset.generate_otp', return_value='123456')
+    def test_full_reset_flow_changes_password_and_logs_in(self, _mock_otp, _mock_sms):
+        self.client.post(reverse('password_reset'), {'phone_number': '555111222'})
+        verify = self.client.post(reverse('password_reset_verify'), {'code': '123456'})
+        self.assertRedirects(verify, reverse('password_reset_confirm'))
+
+        confirm = self.client.post(reverse('password_reset_confirm'), {
+            'password1': 'NewStrongPass123!@#',
+            'password2': 'NewStrongPass123!@#',
+        }, follow=True)
+        self.assertEqual(confirm.status_code, 200)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password('NewStrongPass123!@#'))
+        self.assertEqual(int(confirm.context['user'].id), self.user.id)
+
+    @patch('accounts.password_reset.send_otp_sms', return_value=(True, None))
+    @patch('accounts.password_reset.generate_otp', return_value='123456')
+    def test_wrong_otp_is_rejected(self, _mock_otp, _mock_sms):
+        self.client.post(reverse('password_reset'), {'phone_number': '555111222'})
+        response = self.client.post(reverse('password_reset_verify'), {'code': '000000'})
+        self.assertEqual(response.status_code, 200)
+        otp = PasswordResetOTP.objects.get(phone_number='555111222')
+        self.assertEqual(otp.attempts, 1)
+        self.assertFalse(otp.is_used)
+
+    @patch('accounts.password_reset.send_otp_sms', return_value=(True, None))
+    @patch('accounts.password_reset.generate_otp', return_value='123456')
+    def test_expired_otp_is_rejected(self, _mock_otp, _mock_sms):
+        self.client.post(reverse('password_reset'), {'phone_number': '555111222'})
+        otp = PasswordResetOTP.objects.get(phone_number='555111222')
+        otp.expires_at = timezone.now() - timedelta(minutes=1)
+        otp.save(update_fields=['expires_at'])
+        response = self.client.post(reverse('password_reset_verify'), {'code': '123456'})
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(self.client.session.get(SESSION_USER_ID))
+
+    @patch('accounts.password_reset.send_otp_sms', return_value=(True, None))
+    @patch('accounts.password_reset.generate_otp', return_value='123456')
+    def test_resend_is_rate_limited(self, _mock_otp, mock_sms):
+        self.client.post(reverse('password_reset'), {'phone_number': '555111222'})
+        self.assertEqual(mock_sms.call_count, 1)
+        response = self.client.post(reverse('password_reset_resend'), follow=True)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(mock_sms.call_count, 1)
+
+    @override_settings(SMS_OFFICE_API_KEY='test-sms-key', SMS_OFFICE_SENDER='MatMartivad')
+    @patch('accounts.sms.send_sms')
+    def test_send_otp_sms_uses_settings_api_key(self, mock_send):
+        mock_send.return_value = {'Success': True, 'ErrorCode': 0}
+        ok, err = send_otp_sms('555111222', '123456')
+        self.assertTrue(ok)
+        self.assertIsNone(err)
+        kwargs = mock_send.call_args.kwargs
+        self.assertEqual(kwargs['api_key'], 'test-sms-key')
+        self.assertEqual(kwargs['destination'], '555111222')
+        self.assertEqual(kwargs['sender'], 'MatMartivad')
+        self.assertTrue(kwargs['urgent'])
+        self.assertIn('123456', kwargs['content'])
+
 
 
 

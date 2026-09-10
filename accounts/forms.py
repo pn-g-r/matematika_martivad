@@ -486,5 +486,100 @@ class StaffRegistrationForm(forms.ModelForm):
         return user
 
 
+class PasswordResetPhoneForm(forms.Form):
+    phone_number = forms.CharField(
+        label="მშობლის ტელეფონის ნომერი",
+        max_length=9,
+        min_length=9,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'placeholder': '555111222',
+            'class': 'form-input phone-input',
+            'pattern': r'\d{9}',
+            'inputmode': 'numeric',
+            'maxlength': '9',
+            'title': 'ზუსტად 9 ციფრი (მაგ: 555111222)',
+            'autocomplete': 'tel',
+            'autofocus': True,
+        })
+    )
+
+    def clean_phone_number(self):
+        phone = self.cleaned_data.get('phone_number', '').strip()
+        if not PHONE_REGEX.match(phone):
+            raise ValidationError(PHONE_ERROR_MSG)
+        return phone
+
+
+class PasswordResetOTPForm(forms.Form):
+    code = forms.CharField(
+        label="SMS კოდი",
+        max_length=6,
+        min_length=6,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'placeholder': '000000',
+            'class': 'form-input otp-input',
+            'pattern': r'\d{6}',
+            'inputmode': 'numeric',
+            'maxlength': '6',
+            'title': 'ზუსტად 6 ციფრი',
+            'autocomplete': 'one-time-code',
+            'autofocus': True,
+        })
+    )
+
+    def clean_code(self):
+        code = self.cleaned_data.get('code', '').strip()
+        if not code.isdigit() or len(code) != 6:
+            raise ValidationError("SMS კოდი უნდა შედგებოდეს ზუსტად 6 ციფრისგან.")
+        return code
+
+
+class PasswordResetConfirmForm(forms.Form):
+    password1 = forms.CharField(
+        label="ახალი პაროლი",
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'ახალი პაროლი',
+            'class': 'form-input',
+            'autocomplete': 'new-password',
+            'autofocus': True,
+        }),
+        required=True,
+    )
+    password2 = forms.CharField(
+        label="პაროლის დადასტურება",
+        widget=forms.PasswordInput(attrs={
+            'placeholder': 'გაიმეორეთ ახალი პაროლი',
+            'class': 'form-input',
+            'autocomplete': 'new-password',
+        }),
+        required=True,
+    )
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        p1 = cleaned_data.get('password1')
+        p2 = cleaned_data.get('password2')
+        if p1 and p2:
+            if p1 != p2:
+                self.add_error('password2', "პაროლები ერთმანეთს არ ემთხვევა.")
+            else:
+                try:
+                    validate_password(p1, self.user)
+                except ValidationError as err:
+                    self.add_error('password1', err)
+        return cleaned_data
+
+    def save(self):
+        self.user.set_password(self.cleaned_data['password1'])
+        self.user.save(update_fields=['password'])
+        return self.user
+
+
 
 

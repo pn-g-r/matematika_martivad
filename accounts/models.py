@@ -62,3 +62,18 @@ class CustomUser(AbstractUser):
         return self.username
 
 
+class PasswordResetOTP(models.Model):
+    phone_number = models.CharField(max_length=9, db_index=True)
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    is_used = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"OTP {self.phone_number}"
+
+

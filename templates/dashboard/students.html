@@ -142,6 +142,160 @@
     color: #0f172a;
     white-space: nowrap;
   }
+  .student-name-wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    max-width: 100%;
+  }
+  .comment-drop {
+    position: relative;
+    display: inline-flex;
+    flex-shrink: 0;
+  }
+  .comment-bell {
+    position: relative;
+    width: 26px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #94a3b8;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    font-size: 12px;
+  }
+  .comment-bell:hover {
+    border-color: #cbd5e1;
+    color: #64748b;
+    background: #fff;
+  }
+  .comment-drop.has-comments .comment-bell {
+    background: #fff7ed;
+    border-color: #fdba74;
+    color: #ea580c;
+  }
+  .comment-drop.has-comments .comment-bell:hover,
+  .comment-drop.is-open .comment-bell {
+    background: #ffedd5;
+    border-color: #fb923c;
+    color: #c2410c;
+  }
+  .comment-bell__count {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+  }
+  .comment-drop__menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    z-index: 30;
+    width: 280px;
+    max-width: min(280px, 70vw);
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.14);
+    padding: 10px;
+  }
+  .comment-drop.is-open .comment-drop__menu {
+    display: block;
+  }
+  .comment-drop__title {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #0f172a;
+  }
+  .comment-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    margin-bottom: 10px;
+  }
+  .comment-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px;
+  }
+  .comment-item__text {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: #334155;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .comment-item__meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .comment-item__meta small {
+    color: #94a3b8;
+    font-size: 10px;
+  }
+  .comment-item__delete {
+    background: none;
+    border: none;
+    color: #ef4444;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0;
+  }
+  .comment-item__delete:hover {
+    text-decoration: underline;
+  }
+  .comment-empty {
+    margin: 0 0 10px;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+  .comment-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    resize: vertical;
+    min-height: 64px;
+    font-family: inherit;
+  }
+  .comment-form button[type="submit"] {
+    margin-top: 6px;
+    width: 100%;
+    background: #0284c7;
+    border: none;
+    color: #fff;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .comment-form button[type="submit"]:hover {
+    background: #0369a1;
+  }
   .muted {
     color: #64748b;
     font-size: 12px;
@@ -520,7 +674,69 @@
               data-user-id="{{ student.pk }}"
               data-student-name="{{ student.student_name|default:student.username }}"
             >
-              <td><span class="student-name">{{ student.student_name|default:student.username }}</span></td>
+              <td>
+                <div class="student-name-wrap">
+                  <span class="student-name">{{ student.student_name|default:student.username }}</span>
+                  <div class="comment-drop{% if student.staff_comment_list %} has-comments{% endif %}" data-comment-dropdown>
+                    <button type="button" class="comment-bell" data-comment-toggle aria-label="კომენტარები">
+                      <i class="fa-solid fa-bell"></i>
+                      {% if student.staff_comment_list %}
+                      <span class="comment-bell__count">{{ student.staff_comment_list|length }}</span>
+                      {% endif %}
+                    </button>
+                    <div class="comment-drop__menu">
+                      <p class="comment-drop__title">კომენტარები</p>
+                      {% if student.staff_comment_list %}
+                      <div class="comment-list">
+                        {% for comment in student.staff_comment_list %}
+                        <div class="comment-item">
+                          <p class="comment-item__text">{{ comment.text }}</p>
+                          <div class="comment-item__meta">
+                            <small>{{ comment.created_at|date:"Y-m-d H:i" }}{% if comment.author %} · {{ comment.author.username }}{% endif %}</small>
+                            <form
+                              method="post"
+                              action="{% url 'dashboard:delete_comment' user_id=student.pk comment_id=comment.pk %}"
+                            >
+                              {% csrf_token %}
+                              <input type="hidden" name="page" value="{{ page_obj.number }}" />
+                              <input type="hidden" name="list_status" value="{{ filter_status }}" />
+                              <input type="hidden" name="list_course" value="{{ filter_course }}" />
+                              <input type="hidden" name="list_search_field" value="{{ search_field }}" />
+                              <input type="hidden" name="list_search_q" value="{{ search_q }}" />
+                              <button type="submit" class="comment-item__delete">წაშლა</button>
+                            </form>
+                          </div>
+                        </div>
+                        {% endfor %}
+                      </div>
+                      {% else %}
+                      <p class="comment-empty">კომენტარი ჯერ არ არის.</p>
+                      {% endif %}
+                      <form
+                        method="post"
+                        action="{% url 'dashboard:add_comment' user_id=student.pk %}"
+                        class="comment-form"
+                      >
+                        {% csrf_token %}
+                        <input type="hidden" name="page" value="{{ page_obj.number }}" />
+                        <input type="hidden" name="list_status" value="{{ filter_status }}" />
+                        <input type="hidden" name="list_course" value="{{ filter_course }}" />
+                        <input type="hidden" name="list_search_field" value="{{ search_field }}" />
+                        <input type="hidden" name="list_search_q" value="{{ search_q }}" />
+                        <textarea
+                          name="text"
+                          rows="3"
+                          maxlength="1000"
+                          placeholder="დაწერეთ კომენტარი..."
+                          class="comment-form__input"
+                          required
+                        ></textarea>
+                        <button type="submit">დამატება</button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </td>
               <td>{{ student.get_grade_display|default:student.grade|default:"—" }}</td>
               <td class="cell-inline">
                 <span class="muted">{{ student.parent_name|default:"—" }} · {{ student.phone_number|default:"—" }}</span>
@@ -699,7 +915,23 @@
     toggle.addEventListener("click", function (e) {
       e.stopPropagation();
       var wasOpen = root.classList.contains("is-open");
-      document.querySelectorAll("[data-courses-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
+      document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
+        el.classList.remove("is-open");
+      });
+      if (!wasOpen) root.classList.add("is-open");
+    });
+  });
+
+  document.querySelectorAll("[data-comment-dropdown]").forEach(function (root) {
+    root.addEventListener("click", function (e) {
+      e.stopPropagation();
+    });
+    var toggle = root.querySelector("[data-comment-toggle]");
+    if (!toggle) return;
+    toggle.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var wasOpen = root.classList.contains("is-open");
+      document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
         el.classList.remove("is-open");
       });
       if (!wasOpen) root.classList.add("is-open");
@@ -736,7 +968,7 @@
     searchFieldBtn.addEventListener("click", function (e) {
       e.stopPropagation();
       var wasOpen = searchFieldPicker.classList.contains("is-open");
-      document.querySelectorAll("[data-courses-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
+      document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
         el.classList.remove("is-open");
       });
       if (!wasOpen) searchFieldPicker.classList.add("is-open");
@@ -764,7 +996,7 @@
   }
 
   document.addEventListener("click", function (e) {
-    document.querySelectorAll("[data-courses-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
+    document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
       el.classList.remove("is-open");
     });
     if (searchBox && !searchBox.contains(e.target)) {

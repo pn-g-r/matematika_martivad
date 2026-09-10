@@ -144,6 +144,14 @@ FLITT_CHECKOUT_URL = config('FLITT_CHECKOUT_URL', default='https://pay.flitt.com
 FLITT_CURRENCY = 'GEL'
 FLITT_CHECKOUT_LANG = config('FLITT_CHECKOUT_LANG', default='ka')
 
+# SMS Office (password reset OTP)
+SMS_OFFICE_API_KEY = config('SMS_OFFICE_API_KEY', default='')
+SMS_OFFICE_SENDER = config('SMS_OFFICE_SENDER', default='MatMartivad')
+PASSWORD_RESET_OTP_EXPIRY_SECONDS = 600
+PASSWORD_RESET_OTP_RESEND_SECONDS = 60
+PASSWORD_RESET_OTP_MAX_ATTEMPTS = 5
+
+
 # Production / Reverse Proxy SSL & Domain Configuration
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SITE_URL = config('SITE_URL', default='')
