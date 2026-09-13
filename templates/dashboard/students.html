@@ -102,6 +102,137 @@
     background: #eff6ff;
     font-weight: 600;
   }
+  .filter-date-select {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .filter-date-select.is-search-mode {
+    opacity: 0.65;
+  }
+  .dash-date-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #475569;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .dash-date-input {
+    background: #fff;
+    border: 1px solid #cbd5e1;
+    color: #1e293b;
+    border-radius: 6px;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-family: inherit;
+    outline: none;
+  }
+  .dash-date-input:focus {
+    border-color: #0284c7;
+  }
+  .dash-date-input.is-active {
+    border-color: #0284c7;
+    background: #eff6ff;
+    color: #0284c7;
+    font-weight: 600;
+  }
+  .dash-date-clear {
+    text-decoration: none;
+    color: #ef4444;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 2px 4px;
+    line-height: 1;
+    border-radius: 4px;
+  }
+  .dash-date-clear:hover {
+    background: #fee2e2;
+  }
+  .dash-date-banner {
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    font-size: 13px;
+    color: #166534;
+  }
+  .dash-date-banner__title {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 600;
+  }
+  .dash-date-banner__stats {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .dash-date-banner__stat {
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    background: #fff;
+    border: 1px solid #dcfce7;
+  }
+  .dash-date-banner__stat--charge {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+    font-weight: 600;
+  }
+  .dash-date-banner__stat--no-charge {
+    background: #fef3c7;
+    color: #b45309;
+    border-color: #fde68a;
+    font-weight: 600;
+  }
+  .dash-date-banner__clear {
+    color: #dc2626;
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: #fee2e2;
+  }
+  .dash-date-banner__clear:hover {
+    background: #fecaca;
+  }
+  .charge-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 6px;
+    margin-top: 3px;
+    white-space: nowrap;
+  }
+  .charge-badge--charge {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+  }
+  .charge-badge--no-charge {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+  .charge-badge--yearly {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
   .students-table-wrap {
     overflow-x: auto;
     border: 1px solid #e2e8f0;
@@ -336,8 +467,8 @@
     top: calc(100% + 4px);
     left: 0;
     z-index: 20;
-    min-width: 200px;
-    max-width: 280px;
+    min-width: 270px;
+    max-width: 340px;
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
@@ -347,20 +478,77 @@
   .courses-drop.is-open .courses-drop__menu {
     display: block;
   }
+  .courses-drop__btn.is-canceled-highlight {
+    background: #fffbeb;
+    border-color: #fde68a;
+    color: #b45309;
+    font-weight: 700;
+  }
   .courses-drop__item {
     display: block;
     padding: 6px 8px;
     font-size: 12px;
     color: #334155;
-    border-radius: 4px;
+    border-radius: 6px;
+    border-bottom: 1px solid #f1f5f9;
   }
-  .courses-drop__item.is-active { color: #047857; font-weight: 600; }
+  .courses-drop__item:last-child {
+    border-bottom: none;
+  }
+  .courses-drop__item.is-active { color: #047857; }
   .courses-drop__item.is-expired { color: #94a3b8; }
   .courses-drop__item small {
     display: block;
-    color: #94a3b8;
+    color: #64748b;
     font-weight: 400;
     margin-top: 2px;
+  }
+  .sub-badge {
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .sub-badge--active {
+    background: #ecfdf5;
+    color: #047857;
+    border: 1px solid #a7f3d0;
+  }
+  .sub-badge--canceled {
+    background: #fffbeb;
+    color: #b45309;
+    border: 1px solid #fde68a;
+  }
+  .sub-badge--yearly {
+    background: #eff6ff;
+    color: #1d4ed8;
+    border: 1px solid #bfdbfe;
+  }
+  .courses-drop__btn.is-free-highlight {
+    background: #fdf2f8;
+    border-color: #fbcfe8;
+    color: #db2777;
+    font-weight: 700;
+  }
+  .sub-badge--free {
+    background: #fdf2f8;
+    color: #db2777;
+    border: 1px solid #fbcfe8;
+  }
+  .sub-badge--expired {
+    background: #f1f5f9;
+    color: #64748b;
+    border: 1px solid #e2e8f0;
+  }
+  .copy-phone-btn {
+    transition: color 0.15s ease;
+  }
+  .copy-phone-btn:hover {
+    color: #0284c7 !important;
   }
   .grant-panel {
     background: #fff;
@@ -638,14 +826,17 @@
     <div class="dash-table-area">
       <div class="dash-filters">
         <div class="filter-pills{% if search_active %} is-search-mode{% endif %}">
-          <a href="{{ url_filter_all }}" class="filter-pill{% if filter_status == 'all' and not search_active %} is-active{% endif %}">ყველა</a>
-          <a href="{{ url_filter_enrolled }}" class="filter-pill{% if filter_status == 'enrolled' and not search_active %} is-active{% endif %}">ჩარიცხული</a>
-          <a href="{{ url_filter_not_enrolled }}" class="filter-pill{% if filter_status == 'not_enrolled' and not search_active %} is-active{% endif %}">არა ჩარიცხული</a>
+          {% for tab in filter_tabs %}
+          <a href="{{ tab.url }}" class="filter-pill{% if filter_status == tab.id and not search_active %} is-active{% endif %}">{{ tab.label }}</a>
+          {% endfor %}
         </div>
         <div class="dash-filters__divider" aria-hidden="true"></div>
         <form method="get" class="filter-course-select{% if search_active %} is-search-mode{% endif %}">
           {% if filter_status != 'all' and not search_active %}
           <input type="hidden" name="status" value="{{ filter_status }}" />
+          {% endif %}
+          {% if expiring_date_str %}
+          <input type="hidden" name="expiring_date" value="{{ expiring_date_str }}" />
           {% endif %}
           <select name="course" id="filter-course" class="{% if filter_course %}is-active{% endif %}" aria-label="კურსი" onchange="this.form.submit()">
             <option value="">— ყველა კურსი —</option>
@@ -654,7 +845,50 @@
             {% endfor %}
           </select>
         </form>
+        <div class="dash-filters__divider" aria-hidden="true"></div>
+        <form method="get" class="filter-date-select{% if search_active %} is-search-mode{% endif %}">
+          {% if filter_status != 'all' and not search_active %}
+          <input type="hidden" name="status" value="{{ filter_status }}" />
+          {% endif %}
+          {% if filter_course %}
+          <input type="hidden" name="course" value="{{ filter_course }}" />
+          {% endif %}
+          <label for="filter-expiring-date" class="dash-date-label">
+            <i class="fa-regular fa-calendar"></i> იწურება:
+          </label>
+          <input
+            type="date"
+            id="filter-expiring-date"
+            name="expiring_date"
+            value="{{ expiring_date_str }}"
+            class="dash-date-input{% if expiring_date_str %} is-active{% endif %}"
+            onchange="this.form.submit()"
+          />
+          {% if expiring_date_str %}
+          <a href="{{ url_clear_date }}" class="dash-date-clear" title="თარიღის გასუფთავება">✕</a>
+          {% endif %}
+        </form>
       </div>
+
+      {% if date_stats %}
+      <div class="dash-date-banner">
+        <div class="dash-date-banner__title">
+          <i class="fa-solid fa-calendar-day"></i> <strong>{{ expiring_date_str }}</strong> — ვადის გასვლა &amp; ჩამოჭრები:
+        </div>
+        <div class="dash-date-banner__stats">
+          <span class="dash-date-banner__stat">
+            სულ იწურება: <strong>{{ date_stats.total_expiring }}</strong>
+          </span>
+          <span class="dash-date-banner__stat dash-date-banner__stat--charge">
+            🟢 ჩამოეჭრება (ავტო-განახლება): <strong>{{ date_stats.will_charge_count }}</strong> მოსწავლეს (<strong>{{ date_stats.will_charge_amount }} ₾</strong>)
+          </span>
+          <span class="dash-date-banner__stat dash-date-banner__stat--no-charge">
+            ⚠️ არ ჩამოეჭრება (გაუქმებული / 1-წლიანი): <strong>{{ date_stats.will_not_charge_count }}</strong>
+          </span>
+        </div>
+        <a href="{{ url_clear_date }}" class="dash-date-banner__clear">თარიღის გასუფთავება ✕</a>
+      </div>
+      {% endif %}
 
       <div class="students-table-wrap">
         <table class="students-table">
@@ -662,7 +896,8 @@
             <tr>
               <th>მოსწავლე</th>
               <th>კლ.</th>
-              <th>მშობელი / ტელ.</th>
+              <th>მშობელი</th>
+              <th>ტელეფონი</th>
               <th>კურსები</th>
               <th>რეგ.</th>
             </tr>
@@ -703,6 +938,7 @@
                               <input type="hidden" name="list_course" value="{{ filter_course }}" />
                               <input type="hidden" name="list_search_field" value="{{ search_field }}" />
                               <input type="hidden" name="list_search_q" value="{{ search_q }}" />
+                              <input type="hidden" name="list_expiring_date" value="{{ expiring_date_str }}" />
                               <button type="submit" class="comment-item__delete">წაშლა</button>
                             </form>
                           </div>
@@ -723,6 +959,7 @@
                         <input type="hidden" name="list_course" value="{{ filter_course }}" />
                         <input type="hidden" name="list_search_field" value="{{ search_field }}" />
                         <input type="hidden" name="list_search_q" value="{{ search_q }}" />
+                        <input type="hidden" name="list_expiring_date" value="{{ expiring_date_str }}" />
                         <textarea
                           name="text"
                           rows="3"
@@ -736,22 +973,84 @@
                     </div>
                   </div>
                 </div>
+                {% if expiring_date_str %}
+                  {% for access in student.active_accesses %}
+                    {% if access.expires_at|date:"Y-m-d" == expiring_date_str %}
+                      <div>
+                        {% if access.plan_type == 'monthly' and access.auto_renew %}
+                          <span class="charge-badge charge-badge--charge" title="ჩამოეჭრება 50 ₾ Flitt-ით ავტომატურად">
+                            🟢 ჩამოეჭრება 50 ₾ ({{ access.course.title }})
+                          </span>
+                        {% elif not access.last_order_id %}
+                          <span class="charge-badge charge-badge--no-charge" title="უფასო წვდომა (ადმინის მინიჭებული)">
+                            🎁 უფასო (იწურება: {{ access.course.title }})
+                          </span>
+                        {% elif access.plan_type == 'monthly' and not access.auto_renew %}
+                          <span class="charge-badge charge-badge--no-charge" title="ავტო-განახლება გაუქმებულია">
+                            ⚠️ არ ჩამოეჭრება (გაუქმებული: {{ access.course.title }})
+                          </span>
+                        {% else %}
+                          <span class="charge-badge charge-badge--yearly" title="1-წლიანი პაკეტი იწურება">
+                            🔵 1-წლიანი (იწურება: {{ access.course.title }})
+                          </span>
+                        {% endif %}
+                      </div>
+                    {% endif %}
+                  {% endfor %}
+                {% endif %}
               </td>
               <td>{{ student.get_grade_display|default:student.grade|default:"—" }}</td>
               <td class="cell-inline">
-                <span class="muted">{{ student.parent_name|default:"—" }} · {{ student.phone_number|default:"—" }}</span>
+                <span class="muted">{{ student.parent_name|default:"—" }}</span>
+              </td>
+              <td style="white-space: nowrap;">
+                {% if student.phone_number %}
+                <span style="display: inline-flex; align-items: center; gap: 4px;">
+                  <span style="font-weight: 500; color: #334155;">{{ student.phone_number }}</span>
+                  <a href="tel:{{ student.phone_number }}" onclick="event.stopPropagation();" title="დარეკვა" style="color: #0284c7; text-decoration: none; padding: 2px 3px; font-size: 11px;"><i class="fa-solid fa-phone"></i></a>
+                  <a href="https://wa.me/995{{ student.phone_number }}" target="_blank" onclick="event.stopPropagation();" title="WhatsApp" style="color: #10b981; text-decoration: none; padding: 2px 3px; font-size: 12px;"><i class="fa-brands fa-whatsapp"></i></a>
+                  <button type="button" class="copy-phone-btn" onclick="event.stopPropagation(); copyPhone('{{ student.phone_number }}', this);" title="ნომრის კოპირება" style="background: none; border: none; color: #64748b; cursor: pointer; padding: 2px 3px; font-size: 11px; display: inline-flex; align-items: center;">
+                    <i class="fa-regular fa-copy"></i>
+                  </button>
+                </span>
+                {% else %}
+                <span class="muted">—</span>
+                {% endif %}
               </td>
               <td onclick="event.stopPropagation();">
                 <div class="courses-drop" data-courses-dropdown>
                   {% if student.active_accesses %}
-                  <button type="button" class="courses-drop__btn" data-courses-toggle>
-                    {{ student.active_accesses|length }} კურსი ▾
+                  <button type="button" class="courses-drop__btn{% if filter_status == 'canceled_renewal' %} is-canceled-highlight{% elif filter_status == 'free_access' %} is-free-highlight{% endif %}" data-courses-toggle>
+                    {% if filter_status == 'canceled_renewal' %}⚠️ {% elif filter_status == 'free_access' %}🎁 {% endif %}{{ student.active_accesses|length }} კურსი ▾
                   </button>
                   <div class="courses-drop__menu">
                     {% for access in student.active_accesses %}
-                    <div class="courses-drop__item {% if access.is_valid_now %}is-active{% else %}is-expired{% endif %}">
-                      {{ access.course.title }}
-                      <small>{{ access.expires_at|date:"Y-m-d" }}-მდე</small>
+                    <div class="courses-drop__item {% if access.is_valid_now %}is-active{% else %}is-expired{% endif %}" {% if expiring_date_str and access.expires_at|date:"Y-m-d" == expiring_date_str %}style="background: #f0fdf4; border-left: 3px solid #10b981; padding-left: 6px;"{% endif %}>
+                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                        <span style="font-weight: 600; color: #0f172a;">{{ access.course.title }}</span>
+                        {% if not access.is_valid_now %}
+                          <span class="sub-badge sub-badge--expired">ვადაგასული</span>
+                        {% elif not access.last_order_id %}
+                          <span class="sub-badge sub-badge--free">🎁 უფასო</span>
+                        {% elif access.plan_type == 'monthly' and not access.auto_renew %}
+                          <span class="sub-badge sub-badge--canceled">⚠️ გაუქმებული</span>
+                        {% elif access.plan_type == 'monthly' and access.auto_renew %}
+                          <span class="sub-badge sub-badge--active">🟢 აქტიური</span>
+                        {% else %}
+                          <span class="sub-badge sub-badge--yearly">1-წლიანი</span>
+                        {% endif %}
+                      </div>
+                      <small>
+                        {% if not access.last_order_id and access.is_valid_now %}
+                          <span style="color: #db2777; font-weight: 500;">უფასო წვდომა (ადმინი)</span> · წვდომა: {{ access.expires_at|date:"Y-m-d" }}-მდე
+                        {% elif access.plan_type == 'monthly' and not access.auto_renew and access.is_valid_now %}
+                          <span style="color: #b45309; font-weight: 500;">ავტო-გახანგრძლივება გათიშულია</span> · წვდომა: {{ access.expires_at|date:"Y-m-d" }}-მდე
+                        {% elif access.plan_type == 'monthly' and access.auto_renew and access.is_valid_now %}
+                          <span style="color: #047857; font-weight: 500;">ავტომატური განახლება ჩართულია</span> · {{ access.expires_at|date:"Y-m-d" }}-მდე
+                        {% else %}
+                          წვდომა: {{ access.expires_at|date:"Y-m-d" }}-მდე
+                        {% endif %}
+                      </small>
                     </div>
                     {% endfor %}
                   </div>
@@ -766,7 +1065,7 @@
             </tr>
             {% empty %}
             <tr>
-              <td colspan="5" style="text-align: center; color: #64748b; padding: 32px;">მოსწავლეები ჯერ არ არის.</td>
+              <td colspan="6" style="text-align: center; color: #64748b; padding: 32px;">მოსწავლეები ჯერ არ არის.</td>
             </tr>
             {% endfor %}
           </tbody>
@@ -806,6 +1105,7 @@
         <input type="hidden" name="list_course" value="{{ filter_course }}" />
         <input type="hidden" name="list_search_field" value="{{ search_field }}" />
         <input type="hidden" name="list_search_q" value="{{ search_q }}" />
+        <input type="hidden" name="list_expiring_date" value="{{ expiring_date_str }}" />
         <div class="field-full">
           <label for="grant-course">კურსი</label>
           <select name="course" id="grant-course" required disabled>
@@ -832,6 +1132,9 @@
     <div class="student-search">
       <form method="get" class="student-search__form" id="student-search-form">
         <input type="hidden" name="search_field" id="search-field-input" value="{{ search_field }}" />
+        {% if expiring_date_str %}
+        <input type="hidden" name="expiring_date" value="{{ expiring_date_str }}" />
+        {% endif %}
         <div class="student-search__row">
           <div class="search-field-picker{% if search_field %} is-ready{% endif %}" id="search-field-picker">
             <button type="button" class="search-field-picker__btn{% if search_field %} is-active{% endif %}" id="search-field-btn" title="ძებნის ველი">
@@ -1014,6 +1317,45 @@
 
   if (rows.length === 1) {
     selectStudent(rows[0]);
+  }
+
+  window.copyPhone = function (phone, btn) {
+    if (!phone) return;
+    function showSuccess() {
+      var icon = btn.querySelector("i");
+      if (icon) {
+        var oldClass = icon.className;
+        icon.className = "fa-solid fa-check";
+        icon.style.color = "#10b981";
+        setTimeout(function () {
+          icon.className = oldClass;
+          icon.style.color = "";
+        }, 1500);
+      }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(phone).then(showSuccess).catch(function () {
+        fallbackCopy(phone);
+        showSuccess();
+      });
+    } else {
+      fallbackCopy(phone);
+      showSuccess();
+    }
+  };
+
+  function fallbackCopy(text) {
+    var ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.left = "-9999px";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand("copy");
+    } catch (err) {}
+    document.body.removeChild(ta);
   }
 })();
 </script>

@@ -536,6 +536,31 @@ class PasswordResetOTPForm(forms.Form):
         return code
 
 
+class RegistrationOTPForm(forms.Form):
+    code = forms.CharField(
+        label="SMS კოდი",
+        max_length=6,
+        min_length=6,
+        required=True,
+        widget=forms.TextInput(attrs={
+            'placeholder': '000000',
+            'class': 'form-input otp-input',
+            'pattern': r'\d{6}',
+            'inputmode': 'numeric',
+            'maxlength': '6',
+            'title': 'ზუსტად 6 ციფრი',
+            'autocomplete': 'one-time-code',
+            'autofocus': True,
+        })
+    )
+
+    def clean_code(self):
+        code = self.cleaned_data.get('code', '').strip()
+        if not code.isdigit() or len(code) != 6:
+            raise ValidationError("SMS კოდი უნდა შედგებოდეს ზუსტად 6 ციფრისგან.")
+        return code
+
+
 class PasswordResetConfirmForm(forms.Form):
     password1 = forms.CharField(
         label="ახალი პაროლი",

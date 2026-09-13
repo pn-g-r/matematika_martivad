@@ -5,9 +5,9 @@ from django.utils import timezone
 from datetime import timedelta
 from unittest.mock import patch
 from accounts.forms import CustomUserCreationForm, CustomAuthenticationForm, CustomUserAdminCreationForm, CustomUserAdminChangeForm
-from accounts.models import PasswordResetOTP
+from accounts.models import PasswordResetOTP, RegistrationOTP
 from accounts.password_reset import SESSION_USER_ID
-from accounts.sms import send_otp_sms
+from accounts.sms import send_otp_sms, send_registration_otp_sms
 
 User = get_user_model()
 
@@ -24,9 +24,19 @@ class AccountsAuthTests(TestCase):
             'password2': 'StrongPass123!@#',
         }
 
-    def test_successful_registration(self):
-        response = self.client.post(reverse('register'), self.valid_user_data, follow=True)
-        self.assertEqual(response.status_code, 200)
+    @patch('accounts.registration_verification.send_registration_otp_sms', return_value=(True, None))
+    @patch('accounts.registration_verification.generate_otp', return_value='654321')
+    def test_successful_registration_with_otp_verification(self, _mock_otp, mock_sms):
+        # 1. Post registration form -> should send OTP and redirect to verify
+        response = self.client.post(reverse('register'), self.valid_user_data)
+        self.assertRedirects(response, reverse('register_verify'))
+        mock_sms.assert_called_once_with('555111222', '654321')
+        self.assertFalse(User.objects.filter(phone_number='555111222').exists())
+        self.assertTrue(RegistrationOTP.objects.filter(phone_number='555111222', is_used=False).exists())
+
+        # 2. Post correct OTP -> should create user, login, and redirect to home
+        verify_response = self.client.post(reverse('register_verify'), {'code': '654321'}, follow=True)
+        self.assertEqual(verify_response.status_code, 200)
         self.assertTrue(User.objects.filter(phone_number='555111222').exists())
         user = User.objects.get(phone_number='555111222')
         self.assertEqual(user.username, '555111222')
@@ -35,7 +45,27 @@ class AccountsAuthTests(TestCase):
         self.assertEqual(user.grade, 'VI')
         self.assertEqual(user.book_author, 'გურამ გოგიშვილი')
         # Check user is logged in
-        self.assertEqual(int(response.context['user'].id), user.id)
+        self.assertEqual(int(verify_response.context['user'].id), user.id)
+
+    @patch('accounts.registration_verification.send_registration_otp_sms', return_value=(True, None))
+    @patch('accounts.registration_verification.generate_otp', return_value='654321')
+    def test_registration_with_wrong_otp_fails(self, _mock_otp, _mock_sms):
+        self.client.post(reverse('register'), self.valid_user_data)
+        verify_response = self.client.post(reverse('register_verify'), {'code': '000000'})
+        self.assertEqual(verify_response.status_code, 200)
+        self.assertFalse(User.objects.filter(phone_number='555111222').exists())
+        otp = RegistrationOTP.objects.get(phone_number='555111222')
+        self.assertEqual(otp.attempts, 1)
+        self.assertFalse(otp.is_used)
+
+    @patch('accounts.registration_verification.send_registration_otp_sms', return_value=(True, None))
+    @patch('accounts.registration_verification.generate_otp', return_value='654321')
+    def test_registration_otp_resend_is_rate_limited(self, _mock_otp, mock_sms):
+        self.client.post(reverse('register'), self.valid_user_data)
+        self.assertEqual(mock_sms.call_count, 1)
+        resend_response = self.client.post(reverse('register_resend'), follow=True)
+        self.assertEqual(resend_response.status_code, 200)
+        self.assertEqual(mock_sms.call_count, 1)
 
     def test_registration_invalid_phone_formats(self):
         invalid_phones = [
@@ -71,15 +101,20 @@ class AccountsAuthTests(TestCase):
         form = response.context['register_form']
         self.assertTrue('phone_number' in form.errors)
 
-    def test_registration_grade_choices(self):
+    @patch('accounts.registration_verification.send_registration_otp_sms', return_value=(True, None))
+    @patch('accounts.registration_verification.generate_otp', return_value='123456')
+    def test_registration_grade_choices(self, _mock_otp, _mock_sms):
         valid_grades = ['IV', 'V', 'VI', 'VII', 'VIII', 'IX']
         for i, grade in enumerate(valid_grades):
             client = Client()
             data = self.valid_user_data.copy()
-            data['phone_number'] = f"55500000{i}"
+            phone = f"55500000{i}"
+            data['phone_number'] = phone
             data['grade'] = grade
             response = client.post(reverse('register'), data)
-            self.assertTrue(User.objects.filter(phone_number=f"55500000{i}").exists())
+            self.assertRedirects(response, reverse('register_verify'))
+            client.post(reverse('register_verify'), {'code': '123456'})
+            self.assertTrue(User.objects.filter(phone_number=phone).exists())
 
         # Invalid grade
         client = Client()

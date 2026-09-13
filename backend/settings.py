@@ -30,6 +30,12 @@ ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS", default="", cast=lambda v: [h.strip() for h in v.split(",") if h.strip()]
 )
 
+CSRF_TRUSTED_ORIGINS = config(
+    "CSRF_TRUSTED_ORIGINS",
+    default="https://*.railway.app,http://127.0.0.1,http://localhost",
+    cast=lambda v: [o.strip() for o in v.split(",") if o.strip()],
+)
+
 
 # Application definition
 

@@ -34,18 +34,17 @@ def send_sms(
         payload["scheduledAt"] = str(scheduled_at)
     if show_service_time:
         payload["showServiceTime"] = "true"
-    response = requests.post(url, data=payload, timeout=15)
+    response = requests.post(url, data=payload, timeout=(3.05, 5))
     return response.json()
 
 
-def send_otp_sms(destination, otp_code):
+def _dispatch_otp_sms(destination, content, action_name="OTP"):
     api_key = getattr(settings, "SMS_OFFICE_API_KEY", "") or ""
     sender = getattr(settings, "SMS_OFFICE_SENDER", "MatMartivad")
     if not api_key:
         logger.error("SMS_OFFICE_API_KEY is not configured")
         return False, "SMS სერვისი არ არის კონფიგურირებული."
 
-    content = f"მათემატიკა მარტივად. პაროლის აღდგენის კოდი: {otp_code}"
     try:
         result = send_sms(
             api_key=api_key,
@@ -55,7 +54,7 @@ def send_otp_sms(destination, otp_code):
             urgent=True,
         )
     except (requests.RequestException, ValueError):
-        logger.exception("Failed to send OTP SMS to %s", destination)
+        logger.exception("Failed to send %s SMS to %s", action_name, destination)
         return False, "SMS გაგზავნა ვერ მოხერხდა. სცადეთ თავიდან."
 
     if not isinstance(result, dict):
@@ -67,3 +66,13 @@ def send_otp_sms(destination, otp_code):
         logger.error("SMS Office rejected OTP send: %s", result)
         return False, "SMS გაგზავნა ვერ მოხერხდა. სცადეთ თავიდან."
     return True, None
+
+
+def send_otp_sms(destination, otp_code):
+    content = f"მათემატიკა მარტივად. პაროლის აღდგენის კოდი: {otp_code}"
+    return _dispatch_otp_sms(destination, content, "password reset")
+
+
+def send_registration_otp_sms(destination, otp_code):
+    content = f"მათემატიკა მარტივად. რეგისტრაციის კოდი: {otp_code}"
+    return _dispatch_otp_sms(destination, content, "registration")
