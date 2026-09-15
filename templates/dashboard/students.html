@@ -452,7 +452,8 @@
     cursor: pointer;
     white-space: nowrap;
   }
-  .courses-drop__btn:hover {
+  .courses-drop__btn:hover,
+  .courses-drop.is-open .courses-drop__btn {
     border-color: #cbd5e1;
     background: #e2e8f0;
   }
@@ -465,14 +466,15 @@
     display: none;
     position: absolute;
     top: calc(100% + 4px);
-    left: 0;
+    right: 0;
+    left: auto;
     z-index: 20;
     min-width: 270px;
     max-width: 340px;
     background: #fff;
     border: 1px solid #e2e8f0;
     border-radius: 8px;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.1);
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
     padding: 6px;
   }
   .courses-drop.is-open .courses-drop__menu {
@@ -1212,16 +1214,72 @@
     row.addEventListener("click", function () { selectStudent(row); });
   });
 
+  function closeAllDropdowns() {
+    document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
+      el.classList.remove("is-open");
+      var m = el.querySelector(".courses-drop__menu, .comment-drop__menu");
+      if (m) {
+        m.style.left = "";
+        m.style.right = "";
+        m.style.maxWidth = "";
+      }
+    });
+    if (tableWrap) {
+      tableWrap.style.paddingBottom = "";
+    }
+  }
+
+  function adjustTableWrapForDropdown(root) {
+    if (!tableWrap) return;
+    tableWrap.style.paddingBottom = "";
+    var menu = root.querySelector(".courses-drop__menu, .comment-drop__menu");
+    if (!menu) return;
+
+    menu.style.left = "";
+    menu.style.right = "";
+    menu.style.maxWidth = "";
+
+    var menuRect = menu.getBoundingClientRect();
+    var wrapRect = tableWrap.getBoundingClientRect();
+
+    // Prevent horizontal overflow past right edge of table wrap
+    if (menuRect.right > wrapRect.right - 8) {
+      var shiftRight = menuRect.right - (wrapRect.right - 8);
+      menu.style.right = shiftRight + "px";
+    }
+
+    // Prevent horizontal overflow past left edge of table wrap
+    menuRect = menu.getBoundingClientRect();
+    if (menuRect.left < wrapRect.left + 8) {
+      menu.style.maxWidth = Math.max(220, Math.floor(wrapRect.width - 24)) + "px";
+    }
+
+    // Vertical overflow: expand table wrap when table is small
+    menuRect = menu.getBoundingClientRect();
+    var overflow = menuRect.bottom - wrapRect.bottom;
+    if (overflow > -8) {
+      tableWrap.style.paddingBottom = Math.ceil(overflow + 16) + "px";
+    }
+  }
+
+  window.addEventListener("resize", function () {
+    var openDropdown = document.querySelector("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open");
+    if (openDropdown) {
+      adjustTableWrapForDropdown(openDropdown);
+    }
+  });
+
   document.querySelectorAll("[data-courses-dropdown]").forEach(function (root) {
     var toggle = root.querySelector("[data-courses-toggle]");
     if (!toggle) return;
     toggle.addEventListener("click", function (e) {
       e.stopPropagation();
       var wasOpen = root.classList.contains("is-open");
-      document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
-        el.classList.remove("is-open");
-      });
-      if (!wasOpen) root.classList.add("is-open");
+      closeAllDropdowns();
+      if (!wasOpen) {
+        root.classList.add("is-open");
+        adjustTableWrapForDropdown(root);
+      }
     });
   });
 
@@ -1234,10 +1292,11 @@
     toggle.addEventListener("click", function (e) {
       e.stopPropagation();
       var wasOpen = root.classList.contains("is-open");
-      document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
-        el.classList.remove("is-open");
-      });
-      if (!wasOpen) root.classList.add("is-open");
+      closeAllDropdowns();
+      if (!wasOpen) {
+        root.classList.add("is-open");
+        adjustTableWrapForDropdown(root);
+      }
     });
   });
 
@@ -1271,9 +1330,7 @@
     searchFieldBtn.addEventListener("click", function (e) {
       e.stopPropagation();
       var wasOpen = searchFieldPicker.classList.contains("is-open");
-      document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
-        el.classList.remove("is-open");
-      });
+      closeAllDropdowns();
       if (!wasOpen) searchFieldPicker.classList.add("is-open");
     });
 
@@ -1299,9 +1356,7 @@
   }
 
   document.addEventListener("click", function (e) {
-    document.querySelectorAll("[data-courses-dropdown].is-open, [data-comment-dropdown].is-open, .search-field-picker.is-open").forEach(function (el) {
-      el.classList.remove("is-open");
-    });
+    closeAllDropdowns();
     if (searchBox && !searchBox.contains(e.target)) {
       collapseSearchInput();
     }

@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VI კლასის მათემატიკა - მათემატიკა მარტივად</title>
     <!-- Style -->
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=10.0" />
-    <link rel="stylesheet" href="{% static 'css/course.css' %}?v=10.0" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=11.0" />
+    <link rel="stylesheet" href="{% static 'css/course.css' %}?v=11.0" />
     <!-- Font Awesom Icon -->
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -152,7 +152,7 @@
                 <ul class="lesson-list">
                   {% for lesson in chapter.lessons.all %}
                     {% if has_access or forloop.parentloop.first and forloop.first %}
-                      <li class="playable-lesson" data-video="{{ lesson.video_url }}" style="padding: 10px; border-radius: 6px; transition: 0.3s; margin-bottom: 2px; cursor: pointer;">
+                      <li class="playable-lesson" data-lesson-id="{{ lesson.id }}" data-video="{{ lesson.video_url }}" style="padding: 10px; border-radius: 6px; transition: 0.3s; margin-bottom: 2px; cursor: pointer;">
                         <div class="lesson-header" style="display: flex; justify-content: space-between; align-items: center;">
                           <div class="left" style="display: flex; align-items: center; gap: 8px;">
                             <i class="bx {{ lesson.icon }}" style="color: var(--blue);"></i>
@@ -447,15 +447,81 @@
       </a>
     </footer>
 
-    <!-- VIDEO MODAL -->
-    <div id="video-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; align-items: center; justify-content: center;">
-      <div style="position: relative; width: 90%; max-width: 900px; background: #000; border-radius: 12px; box-shadow: 0 15px 50px rgba(0,0,0,0.5);">
-        <!-- Close Button -->
-        <button id="close-modal" style="position: absolute; top: -40px; right: 0; background: transparent; border: none; color: #fff; font-size: 30px; cursor: pointer; transition: 0.3s;"><i class="bx bx-x"></i></button>
-        <!-- 16:9 Aspect Ratio Container -->
-        <div style="position: relative; padding-top: 56.25%; width: 100%; border-radius: 12px; overflow: hidden;">
-          <iframe id="modal-iframe" src="" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0;" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+    <!-- LESSON PLAYER -->
+    <div id="video-modal" class="lesson-player-overlay" aria-hidden="true">
+      <div class="lesson-player" id="lesson-player">
+        <div class="lesson-player-main">
+          <div class="lesson-player-topbar">
+            <div class="lesson-player-heading">
+              <span class="lesson-player-kicker" id="player-chapter-title"></span>
+              <h2 class="lesson-player-title" id="player-lesson-title">გაკვეთილი</h2>
+            </div>
+            <div class="lesson-player-top-actions">
+              <button type="button" class="lesson-player-icon-btn" id="toggle-player-sidebar" aria-label="ვიდეოს გაფართოება">
+                <i class="bx bx-expand-alt"></i>
+              </button>
+              <button type="button" class="lesson-player-icon-btn" id="close-modal" aria-label="დახურვა">
+                <i class="bx bx-x"></i>
+              </button>
+            </div>
+          </div>
+          <div class="lesson-player-video-wrap">
+            <div class="lesson-player-video">
+              <iframe id="modal-iframe" src="" title="YouTube video player" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+            </div>
+          </div>
+          <div class="lesson-player-nav">
+            <button type="button" class="lesson-player-nav-btn" id="prev-lesson-btn">
+              <i class="bx bx-left-arrow-alt"></i> წინა გაკვეთილი
+            </button>
+            <button type="button" class="lesson-player-nav-btn" id="next-lesson-btn">
+              შემდეგი გაკვეთილი <i class="bx bx-right-arrow-alt"></i>
+            </button>
+          </div>
         </div>
+        <aside class="lesson-player-sidebar" id="lesson-player-sidebar">
+          <div class="lesson-player-sidebar-header">სასწავლო პროგრამა</div>
+          <div class="lesson-player-curriculum">
+            {% for chapter in course.chapters.all %}
+            <div class="player-section{% if forloop.first %} is-open{% endif %}" data-chapter-id="{{ chapter.id }}">
+              <button type="button" class="player-section-toggle">
+                <span>{{ chapter.title }}</span>
+                <i class="bx bx-chevron-down"></i>
+              </button>
+              <ul class="player-section-lessons">
+                {% for lesson in chapter.lessons.all %}
+                  {% if has_access or forloop.parentloop.first and forloop.first %}
+                    <li class="player-lesson"
+                        data-lesson-id="{{ lesson.id }}"
+                        data-video="{{ lesson.video_url }}"
+                        data-title="{{ lesson.title }}"
+                        data-chapter="{{ chapter.title }}"
+                        data-locked="0">
+                      <div class="player-lesson-left">
+                        <i class="bx {{ lesson.icon }}" style="color: #38bdf8;"></i>
+                        <span>{{ lesson.title }}</span>
+                      </div>
+                      <span class="player-lesson-duration">{{ lesson.duration }}</span>
+                    </li>
+                  {% else %}
+                    <li class="player-lesson is-locked"
+                        data-lesson-id="{{ lesson.id }}"
+                        data-title="{{ lesson.title }}"
+                        data-chapter="{{ chapter.title }}"
+                        data-locked="1">
+                      <div class="player-lesson-left">
+                        <i class="bx bx-lock-alt" style="color: #ef4444;"></i>
+                        <span>{{ lesson.title }}</span>
+                      </div>
+                      <span class="player-lesson-duration"><i class="bx bx-lock-alt"></i></span>
+                    </li>
+                  {% endif %}
+                {% endfor %}
+              </ul>
+            </div>
+            {% endfor %}
+          </div>
+        </aside>
       </div>
     </div>
 
@@ -535,62 +601,140 @@
     <script src="{% static 'js/custom.js' %}"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
-          const lessonItems = document.querySelectorAll('.playable-lesson');
           const videoModal = document.getElementById('video-modal');
           const modalIframe = document.getElementById('modal-iframe');
           const closeModal = document.getElementById('close-modal');
-          
-          // Open Modal on click
-          lessonItems.forEach(item => {
-              item.style.cursor = 'pointer';
-              item.addEventListener('click', function() {
-                  const videoUrl = this.getAttribute('data-video');
-                  if (videoUrl && videoUrl !== 'None' && videoUrl !== '') {
-                      let finalUrl = videoUrl;
-                      
-                      // Auto-convert standard YouTube links to embed links
-                      if (finalUrl.includes('youtube.com/watch?v=')) {
-                          finalUrl = finalUrl.replace('watch?v=', 'embed/');
-                          const ampIndex = finalUrl.indexOf('&');
-                          if (ampIndex !== -1) finalUrl = finalUrl.substring(0, ampIndex);
-                      } else if (finalUrl.includes('youtu.be/')) {
-                          finalUrl = finalUrl.replace('youtu.be/', 'youtube.com/embed/');
-                          const qIndex = finalUrl.indexOf('?');
-                          if (qIndex !== -1) finalUrl = finalUrl.substring(0, qIndex);
-                      }
-
-                      modalIframe.src = finalUrl;
-                      videoModal.style.display = 'flex';
-                      document.body.style.overflow = 'hidden'; // prevent background scroll
-                  } else {
-                      alert("ვიდეო არ არის ხელმისაწვდომი ამ გაკვეთილისთვის.");
-                  }
-              });
-          });
-
-          // Close Modal Function
-          function closeVideoModal() {
-              videoModal.style.display = 'none';
-              modalIframe.src = ''; // stop video playback
-              document.body.style.overflow = 'auto'; // restore scroll
-          }
-
-          if (closeModal) closeModal.addEventListener('click', closeVideoModal);
-
-          // Close on clicking outside the video player
-          if (videoModal) {
-              videoModal.addEventListener('click', function(e) {
-                  if (e.target === videoModal) {
-                      closeVideoModal();
-                  }
-              });
-          }
-
-          // Locked lesson handler
+          const prevLessonBtn = document.getElementById('prev-lesson-btn');
+          const nextLessonBtn = document.getElementById('next-lesson-btn');
+          const playerTitle = document.getElementById('player-lesson-title');
+          const playerChapter = document.getElementById('player-chapter-title');
+          const lessonPlayer = document.getElementById('lesson-player');
+          const toggleSidebarBtn = document.getElementById('toggle-player-sidebar');
+          const playerLessons = Array.from(document.querySelectorAll('.player-lesson'));
           const lockedItems = document.querySelectorAll('.locked-lesson');
           const lockedModal = document.getElementById('locked-modal');
           const closeLockedModal = document.getElementById('close-locked-modal');
           const lockedDesc = document.getElementById('locked-modal-desc');
+          let currentLessonIndex = -1;
+
+          function toEmbedUrl(videoUrl) {
+              let finalUrl = videoUrl;
+              if (finalUrl.includes('youtube.com/watch?v=')) {
+                  finalUrl = finalUrl.replace('watch?v=', 'embed/');
+                  const ampIndex = finalUrl.indexOf('&');
+                  if (ampIndex !== -1) finalUrl = finalUrl.substring(0, ampIndex);
+              } else if (finalUrl.includes('youtu.be/')) {
+                  finalUrl = finalUrl.replace('youtu.be/', 'youtube.com/embed/');
+                  const qIndex = finalUrl.indexOf('?');
+                  if (qIndex !== -1) finalUrl = finalUrl.substring(0, qIndex);
+              }
+              return finalUrl;
+          }
+
+          function showLockedFor(title) {
+              if (title && lockedDesc) {
+                  lockedDesc.textContent = `გაკვეთილის „${title}“ და სრული მასალის სანახავად დაიწყეთ კურსი.`;
+              }
+              if (lockedModal) {
+                  lockedModal.style.display = 'flex';
+                  document.body.style.overflow = 'hidden';
+              }
+          }
+
+          function updatePlayerNav() {
+              if (prevLessonBtn) prevLessonBtn.disabled = currentLessonIndex <= 0;
+              if (nextLessonBtn) nextLessonBtn.disabled = currentLessonIndex >= playerLessons.length - 1;
+              playerLessons.forEach((item, index) => {
+                  item.classList.toggle('is-active', index === currentLessonIndex);
+              });
+              const active = playerLessons[currentLessonIndex];
+              if (active) {
+                  const section = active.closest('.player-section');
+                  if (section) section.classList.add('is-open');
+                  active.scrollIntoView({ block: 'nearest' });
+              }
+          }
+
+          function openLessonAt(index) {
+              const item = playerLessons[index];
+              if (!item) return;
+
+              if (item.getAttribute('data-locked') === '1') {
+                  showLockedFor(item.getAttribute('data-title'));
+                  return;
+              }
+
+              const videoUrl = item.getAttribute('data-video');
+              if (!videoUrl || videoUrl === 'None') {
+                  alert("ვიდეო არ არის ხელმისაწვდომი ამ გაკვეთილისთვის.");
+                  return;
+              }
+
+              currentLessonIndex = index;
+              modalIframe.src = toEmbedUrl(videoUrl);
+              if (playerTitle) playerTitle.textContent = item.getAttribute('data-title') || 'გაკვეთილი';
+              if (playerChapter) playerChapter.textContent = item.getAttribute('data-chapter') || '';
+              videoModal.classList.add('is-open');
+              videoModal.style.display = 'flex';
+              videoModal.setAttribute('aria-hidden', 'false');
+              document.body.style.overflow = 'hidden';
+              updatePlayerNav();
+          }
+
+          document.querySelectorAll('.playable-lesson').forEach(item => {
+              item.addEventListener('click', function() {
+                  const lessonId = this.getAttribute('data-lesson-id');
+                  const index = playerLessons.findIndex(el => el.getAttribute('data-lesson-id') === lessonId);
+                  openLessonAt(index >= 0 ? index : 0);
+              });
+          });
+
+          playerLessons.forEach((item, index) => {
+              item.addEventListener('click', function() {
+                  openLessonAt(index);
+              });
+          });
+
+          document.querySelectorAll('.player-section-toggle').forEach(btn => {
+              btn.addEventListener('click', function() {
+                  this.closest('.player-section').classList.toggle('is-open');
+              });
+          });
+
+          if (prevLessonBtn) {
+              prevLessonBtn.addEventListener('click', function() {
+                  if (currentLessonIndex > 0) openLessonAt(currentLessonIndex - 1);
+              });
+          }
+          if (nextLessonBtn) {
+              nextLessonBtn.addEventListener('click', function() {
+                  if (currentLessonIndex < playerLessons.length - 1) openLessonAt(currentLessonIndex + 1);
+              });
+          }
+          if (toggleSidebarBtn && lessonPlayer) {
+              const sidebarToggleIcon = toggleSidebarBtn.querySelector('i');
+              function syncSidebarToggleIcon() {
+                  const hidden = lessonPlayer.classList.contains('sidebar-hidden');
+                  if (sidebarToggleIcon) {
+                      sidebarToggleIcon.className = hidden ? 'bx bx-collapse-alt' : 'bx bx-expand-alt';
+                  }
+                  toggleSidebarBtn.setAttribute('aria-label', hidden ? 'პანელის ჩვენება' : 'ვიდეოს გაფართოება');
+              }
+              toggleSidebarBtn.addEventListener('click', function() {
+                  lessonPlayer.classList.toggle('sidebar-hidden');
+                  syncSidebarToggleIcon();
+              });
+          }
+
+          function closeVideoModal() {
+              videoModal.classList.remove('is-open');
+              videoModal.style.display = 'none';
+              videoModal.setAttribute('aria-hidden', 'true');
+              modalIframe.src = '';
+              document.body.style.overflow = 'auto';
+          }
+
+          if (closeModal) closeModal.addEventListener('click', closeVideoModal);
 
           lockedItems.forEach(item => {
               item.addEventListener('click', function() {
@@ -608,7 +752,9 @@
           function hideLockedModal() {
               if (lockedModal) {
                   lockedModal.style.display = 'none';
-                  document.body.style.overflow = 'auto';
+                  if (!videoModal.classList.contains('is-open')) {
+                      document.body.style.overflow = 'auto';
+                  }
               }
           }
 

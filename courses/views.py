@@ -24,7 +24,10 @@ def course_list(request):
     })
 
 def course_detail(request, pk):
-    course = get_object_or_404(Course, pk=pk)
+    course = get_object_or_404(
+        Course.objects.prefetch_related('objectives', 'chapters__lessons'),
+        pk=pk,
+    )
     has_access = False
     course_access = None
     if request.user.is_authenticated:
