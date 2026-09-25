@@ -233,7 +233,12 @@
           <i class="fa-solid fa-circle-check" style="font-size: 24px;"></i>
           <div style="flex: 1;">
             <strong>თქვენ გაქვთ აქტიური წვდომა ამ კურსზე!</strong><br />
-            კურსი: <strong>{{ selected_course.title }}</strong> | პაკეტი: <strong>{{ course_access.get_plan_type_display }}</strong> | მოქმედებს: <strong>{{ course_access.expires_at|date:"Y-m-d" }}</strong>-მდე.
+            კურსი: <strong>{{ selected_course.title }}</strong> | პაკეტი: <strong>{{ course_access.get_plan_type_display }}</strong> |
+            {% if course_access.expires_at > now %}
+              მოქმედებს: <strong>{{ course_access.expires_at|date:"Y-m-d" }}</strong>-მდე.
+            {% else %}
+              წვდომა გრძელდება Flitt-ის შემდეგი ჩამოჭრის შედეგის მოლოდინში.
+            {% endif %}
             {% if course_access.auto_renew %}
             <span style="display: block; font-size: 13px; color: #38bdf8; margin-top: 4px;">
               <i class="fa-solid fa-repeat"></i> ავტომატური ყოველთვიური განახლება ჩართულია.
@@ -255,6 +260,27 @@
             {% endif %}
           </div>
         </div>
+        {% endif %}
+
+        {% if selected_course and can_cancel_subscription %}
+          {% if not course_access or not course_access.is_valid_now or not course_access.auto_renew %}
+          <div class="current-access-alert">
+            <div style="flex: 1;">
+              {% if has_approved_subscription %}
+              <strong>ამ კურსზე დადასტურებული გამოწერა შესაძლოა Flitt-ში კვლავ აქტიური იყოს.</strong><br />
+              წვდომის ვადის გასვლა გამოწერას ავტომატურად არ აუქმებს.
+              {% else %}
+              <strong>ამ კურსის გამოწერის გადახდა ჩვენს სისტემაში ჯერ არ არის დადასტურებული.</strong><br />
+              თუ გადახდა Flitt-ში უკვე დაასრულეთ, გადაამოწმეთ შეკვეთის სტატუსი. თუ გამოწერა აღარ გსურთ, შეგიძლიათ სცადოთ მისი შეჩერება Flitt-ში.
+              {% endif %}
+            </div>
+            <form action="{% url 'payments:cancel_subscription' %}" method="post" style="display: inline;">
+              {% csrf_token %}
+              <input type="hidden" name="course_id" value="{{ selected_course.id }}">
+              <button type="submit" style="background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.5); padding: 10px 14px; border-radius: 8px; font-weight: 600; cursor: pointer;">გამოწერის შეჩერება Flitt-ში</button>
+            </form>
+          </div>
+          {% endif %}
         {% endif %}
 
         {% if course_access and course_access.is_valid_now %}
@@ -281,7 +307,7 @@
               <ul class="plan-features">
                 <li><i class="fa-solid fa-check"></i> {% if selected_course %}სრული წვდომა კურსზე: <strong>{{ selected_course.title }}</strong>{% else %}სრული წვდომა არჩეულ კურსზე{% endif %}</li>
                 <li><i class="fa-solid fa-check"></i> ყველა ვიდეო-გაკვეთილი და ამოხსნა</li>
-                <li><i class="fa-solid fa-check"></i> ავტომატური ყოველთვიური ჩამოჭრა</li>
+                <li><i class="fa-solid fa-check"></i> ავტომატური ყოველთვიური ჩამოჭრა — მაქსიმუმ 12 დაგეგმილი ჩამოჭრა</li>
                 <li><i class="fa-solid fa-check"></i> გაუქმება ნებისმიერ დროს</li>
               </ul>
             </div>

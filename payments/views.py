@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
-from .models import PaymentOrder, UserCourseAccess, PlanType, OrderStatus
+from .models import PaymentOrder, FulfilledPayment, UserCourseAccess, PlanType, OrderStatus
 from courses.models import Course
 from .flitt_service import FlittPaymentClient, verify_flitt_signature, is_flitt_subscription_stopped
 
@@ -55,6 +55,8 @@ def pricing_view(request):
     course_id = request.GET.get('course_id')
     selected_course = None
     course_access = None
+    can_cancel_subscription = False
+    has_approved_subscription = False
     if course_id:
         selected_course = Course.objects.filter(pk=course_id).first()
 
@@ -63,11 +65,22 @@ def pricing_view(request):
 
     if request.user.is_authenticated and selected_course:
         course_access = UserCourseAccess.objects.filter(user=request.user, course=selected_course).first()
+        subscription_orders = PaymentOrder.objects.filter(
+            user=request.user, course=selected_course,
+            plan_type=PlanType.MONTHLY, is_subscription=True,
+            status__in=(OrderStatus.PROCESSING, OrderStatus.APPROVED),
+            subscription_canceled_at__isnull=True,
+            checkout_url__isnull=False,
+        ).exclude(checkout_url='')
+        can_cancel_subscription = bool(course_access and course_access.auto_renew) or subscription_orders.exists()
+        has_approved_subscription = subscription_orders.filter(status=OrderStatus.APPROVED).exists()
 
     context = {
         'plans': PLANS_CONFIG,
         'selected_course': selected_course,
         'course_access': course_access,
+        'can_cancel_subscription': can_cancel_subscription,
+        'has_approved_subscription': has_approved_subscription,
         'now': timezone.now(),
     }
     return render(request, 'payments/pricing.html', context)
@@ -166,7 +179,8 @@ def checkout_init_view(request, plan_type):
     else:
         err_msg = flitt_res.get('error_message', 'გადახდის ინიციალიზაცია ვერ მოხერხდა.')
         err_code = flitt_res.get('error_code', '')
-        order.status = OrderStatus.DECLINED
+        # A timeout leaves the gateway result unknown; it is not a declined payment.
+        order.status = OrderStatus.PROCESSING if err_code == 'TIMEOUT' else OrderStatus.DECLINED
         order.response_code = err_code
         order.response_description = err_msg
         order.save(update_fields=['status', 'response_code', 'response_description', 'raw_response'])
@@ -188,7 +202,6 @@ def checkout_pay_view(request, order_id):
 
 
 @csrf_exempt
-@transaction.atomic
 def flitt_callback_view(request):
     """
     Server-to-Server Webhook / Callback from Flitt.
@@ -215,17 +228,27 @@ def flitt_callback_view(request):
     if 'response' in data and isinstance(data['response'], dict):
         data = data['response']
 
+    if not isinstance(data, dict):
+        return HttpResponse('Invalid payload', status=400)
+
     # 1. Verify Signature
     if not verify_flitt_signature(data):
-        logger.warning("Flitt callback received with INVALID signature. Data: %s", data)
+        logger.warning("Flitt callback received with invalid signature")
         return HttpResponse("Invalid Signature", status=400)
 
     order_id = data.get('order_id')
     parent_order_id = data.get('parent_order_id')
-    if not order_id and not parent_order_id:
-        logger.error("Flitt callback missing order_id.")
-        return HttpResponse("Missing order_id", status=400)
+    if not isinstance(order_id, str) or not order_id:
+        logger.error('Flitt callback missing order_id.')
+        return HttpResponse('Missing order_id', status=400)
+    if (parent_order_id and not isinstance(parent_order_id, str)) or not isinstance(data.get('order_status', ''), str):
+        return HttpResponse('Invalid callback fields', status=400)
 
+    with transaction.atomic():
+        return _process_verified_flitt_callback(data, order_id, parent_order_id)
+
+
+def _process_verified_flitt_callback(data, order_id, parent_order_id):
     order = None
     if order_id:
         order = PaymentOrder.objects.select_for_update().filter(order_id=order_id).first()
@@ -239,6 +262,12 @@ def flitt_callback_view(request):
             .first()
         )
         if parent_order:
+            callback_currency = data.get('currency')
+            if callback_currency and (
+                not isinstance(callback_currency, str)
+                or callback_currency.upper() != parent_order.currency.upper()
+            ):
+                return HttpResponse('Currency mismatch', status=400)
             expected_tetri = parent_order.amount_tetri
             callback_amount_raw = data.get('amount')
             if callback_amount_raw is not None:
@@ -271,6 +300,7 @@ def flitt_callback_view(request):
                             currency=data.get('currency') or parent_order.currency,
                             order_desc=f"ავტომატური განახლება - {parent_order.order_desc}",
                             is_subscription=True,
+                            subscription_parent_order_id=parent_order_id,
                             status=OrderStatus.PROCESSING,
                         )
                 except IntegrityError:
@@ -279,6 +309,11 @@ def flitt_callback_view(request):
     if not order:
         logger.error("PaymentOrder %s (parent: %s) not found for Flitt callback.", order_id, parent_order_id)
         return HttpResponse("Order not found", status=404)
+
+    if parent_order_id and order_id != parent_order_id:
+        if order.subscription_parent_order_id and order.subscription_parent_order_id != parent_order_id:
+            return HttpResponse('Subscription parent mismatch', status=400)
+        order.subscription_parent_order_id = parent_order_id
 
     # 2. AMOUNT & CURRENCY INTEGRITY CHECK (against amount stored on this order)
     callback_amount = data.get('amount')
@@ -297,7 +332,10 @@ def flitt_callback_view(request):
             logger.error("Invalid amount format in callback for order %s: %s", order.order_id, callback_amount)
             return HttpResponse("Invalid amount", status=400)
 
-    if callback_currency and callback_currency.upper() != order.currency.upper():
+    if callback_currency and (
+        not isinstance(callback_currency, str)
+        or callback_currency.upper() != order.currency.upper()
+    ):
         logger.error(
             "Currency mismatch for order %s: expected %s, got %s",
             order.order_id, order.currency, callback_currency
@@ -305,6 +343,7 @@ def flitt_callback_view(request):
         return HttpResponse("Currency mismatch", status=400)
 
     # 3. Update Order fields
+    prior_status = order.status
     order_status = (data.get('order_status') or '').lower()
     order.flitt_payment_id = str(data.get('payment_id', '') or order.flitt_payment_id or '')
     order.masked_card = str(data.get('masked_card', '') or order.masked_card or '')
@@ -324,29 +363,32 @@ def flitt_callback_view(request):
         new_payment_id = str(data.get('payment_id', '') or '')
         subscription_root_id = None
         if order.plan_type == PlanType.MONTHLY and order.is_subscription:
-            subscription_root_id = parent_order_id or order.order_id
+            subscription_root_id = parent_order_id or order.subscription_parent_order_id or order.order_id
 
-        # IDEMPOTENCY SAFEGUARD:
-        # If this order has already been marked APPROVED, acknowledge without re-granting access.
+        # Recover legacy/partial approved orders that have never granted access.
+        # This and the fulfillment record are committed in the same callback transaction.
         if order.status == OrderStatus.APPROVED:
+            if not order.access_granted_at and order.fulfill_access_if_needed(
+                rectoken=data.get('rectoken', ''),
+                subscription_order_id=subscription_root_id,
+                payment_id=new_payment_id or order.flitt_payment_id,
+            ):
+                order.save(update_fields=['flitt_payment_id', 'masked_card', 'card_type', 'raw_response', 'updated_at'])
+                return HttpResponse("OK", status=200)
             is_renewal_on_same_order = (
                 order.is_subscription
                 and order.plan_type == PlanType.MONTHLY
                 and new_payment_id
-                and order.flitt_payment_id
-                and new_payment_id != order.flitt_payment_id
+                and not FulfilledPayment.objects.filter(order=order, payment_id=new_payment_id).exists()
             )
             if is_renewal_on_same_order:
-                order.flitt_payment_id = new_payment_id
-                order.masked_card = str(data.get('masked_card', '') or order.masked_card or '')
-                order.card_type = str(data.get('card_type', '') or order.card_type or '')
-                order.raw_response = data
-                order.save()
                 if order.fulfill_access_if_needed(
                     rectoken=data.get('rectoken', ''),
                     subscription_order_id=subscription_root_id,
                     payment_id=new_payment_id,
                 ):
+                    order.flitt_payment_id = new_payment_id
+                    order.save(update_fields=['flitt_payment_id', 'masked_card', 'card_type', 'raw_response', 'updated_at'])
                     logger.info(
                         "Renewal on root order %s (payment_id %s) extended access for user %s",
                         order.order_id, new_payment_id, order.user,
@@ -374,7 +416,13 @@ def flitt_callback_view(request):
     elif order_status in ('declined', 'expired', 'reversed', 'processing'):
         order.status = order_status
         order.save()
+        if (order_status == OrderStatus.DECLINED and prior_status != OrderStatus.DECLINED
+                and parent_order_id and order_id != parent_order_id):
+            UserCourseAccess.record_failed_renewal(
+                user=order.user, course=order.course, root_order_id=parent_order_id,
+            )
     else:
+        logger.warning("Received unhandled Flitt order_status %r for order %s", order_status, order.order_id)
         order.save()
 
     # Flitt requires HTTP 200 OK
@@ -409,6 +457,10 @@ def payment_response_view(request):
     return render(request, 'payments/payment_status.html', context)
 
 
+# Limit external gateway calls in one web request; remaining roots can be retried.
+MAX_CANCELLATIONS_PER_REQUEST = 3
+
+
 @login_required
 @require_POST
 def cancel_subscription_view(request):
@@ -416,66 +468,71 @@ def cancel_subscription_view(request):
     Allows an authenticated student to cancel their auto-renewing subscription via Flitt API.
     Stops future billing while preserving access until expires_at.
     """
-    now = timezone.now()
     course_id = request.POST.get('course_id')
-    active_access = None
+    access_query = UserCourseAccess.objects.filter(user=request.user, auto_renew=True)
     if course_id:
-        active_access = UserCourseAccess.objects.filter(
-            user=request.user,
-            course_id=course_id,
-            is_active=True,
-            auto_renew=True,
-            expires_at__gt=now
-        ).first()
+        access_query = access_query.filter(course_id=course_id)
+    access = access_query.first()
 
-    if not active_access:
-        active_access = UserCourseAccess.objects.filter(
-            user=request.user,
-            is_active=True,
-            auto_renew=True,
-            expires_at__gt=now
-        ).first()
+    root_ids = []
+    if access:
+        root_id = access.get_subscription_order_id()
+        if root_id:
+            root_ids.append(root_id)
+    if course_id:
+        root_ids.extend(PaymentOrder.objects.filter(
+            user=request.user, course_id=course_id,
+            plan_type=PlanType.MONTHLY, is_subscription=True,
+            status__in=(OrderStatus.PROCESSING, OrderStatus.APPROVED),
+            subscription_canceled_at__isnull=True,
+            checkout_url__isnull=False,
+        ).exclude(checkout_url='').values_list('order_id', flat=True))
+    # A confirmed stop is durable. Never re-send it because another root failed.
+    root_ids = list(PaymentOrder.objects.filter(
+        user=request.user, order_id__in=set(root_ids),
+        subscription_canceled_at__isnull=True,
+    ).values_list('order_id', flat=True))
 
     next_url = request.POST.get('next') or request.GET.get('next')
-    if not active_access:
-        messages.warning(request, "აქტიური ავტომატური გამოწერა ვერ მოიძებნა.")
-        if next_url:
-            return redirect(next_url)
-        return redirect('payments:pricing')
+    if not root_ids:
+        if access and access.get_subscription_order_id() and PaymentOrder.objects.filter(
+            user=request.user, order_id=access.get_subscription_order_id(),
+            subscription_canceled_at__isnull=False,
+        ).exists():
+            access.auto_renew = False
+            access.save(update_fields=['auto_renew', 'updated_at'])
+            messages.success(request, "გამოწერა შეჩერებულია Flitt-ში. გადახდილი წვდომა ძალაში რჩება ვადის ამოწურვამდე.")
+        else:
+            messages.warning(request, "გასაუქმებელი გამოწერა ვერ მოიძებნა. თუ ჩამოჭრა გრძელდება, მიმართეთ ადმინისტრაციას.")
+        return redirect(next_url or 'payments:pricing')
 
-    subscription_order_id = active_access.get_subscription_order_id()
-    cancel_success = False
-
-    if subscription_order_id:
-        client = FlittPaymentClient()
-        res = client.cancel_subscription(subscription_order_id)
-        logger.info(
-            "Subscription cancellation for root order %s result: %s",
-            subscription_order_id, res,
-        )
-        cancel_success = is_flitt_subscription_stopped(res)
-        if not cancel_success:
-            logger.error(
-                "Flitt did not confirm subscription disabled for order %s: %s",
-                subscription_order_id, res,
+    client = FlittPaymentClient()
+    for root_id in root_ids[:MAX_CANCELLATIONS_PER_REQUEST]:
+        try:
+            res = client.cancel_subscription(root_id)
+        except Exception:
+            logger.exception("Flitt cancellation request failed for order %s", root_id)
+            continue
+        if is_flitt_subscription_stopped(res):
+            PaymentOrder.objects.filter(user=request.user, order_id=root_id).update(
+                subscription_canceled_at=timezone.now()
             )
-    else:
-        logger.error(
-            "Cannot cancel subscription for user %s course %s: no root subscription order ID",
-            request.user, active_access.course_id,
-        )
+        else:
+            logger.error("Flitt did not confirm subscription disabled for order %s", root_id)
 
-    if cancel_success:
-        active_access.auto_renew = False
-        active_access.save(update_fields=['auto_renew', 'updated_at'])
-        messages.success(
-            request,
-            f"თქვენი გამოწერა წარმატებით გაუქმდა. არსებული წვდომა ძალაში რჩება {active_access.expires_at.strftime('%Y-%m-%d')}-მდე, რის შემდეგაც თანხა აღარ ჩამოგეჭრებათ."
-        )
+    unresolved = PaymentOrder.objects.filter(
+        user=request.user, order_id__in=root_ids,
+        subscription_canceled_at__isnull=True,
+    ).exists()
+    if not unresolved:
+        if access:
+            access.auto_renew = False
+            access.save(update_fields=['auto_renew', 'updated_at'])
+        messages.success(request, "გამოწერა შეჩერებულია Flitt-ში. გადახდილი წვდომა ძალაში რჩება ვადის ამოწურვამდე.")
     else:
         messages.error(
             request,
-            "გამოწერის ავტომატური გაუქმება საგადახდო სისტემაში ვერ მოხერხდა. გთხოვთ სცადოთ თავიდან ან მიმართოთ ადმინისტრაციას."
+            "Flitt-მა ყველა გამოწერის შეჩერება ვერ დაადასტურა. ზოგი გამოწერა შეიძლება ჯერ კიდევ აქტიური იყოს. გთხოვთ სცადოთ თავიდან ან მიმართეთ ადმინისტრაციას."
         )
 
     if next_url:

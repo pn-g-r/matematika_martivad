@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VI კლასის მათემატიკა - მათემატიკა მარტივად</title>
     <!-- Style -->
-    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=11.0" />
-    <link rel="stylesheet" href="{% static 'css/course.css' %}?v=11.0" />
+    <link rel="stylesheet" href="{% static 'css/style.css' %}?v=18.0" />
+    <link rel="stylesheet" href="{% static 'css/course.css' %}?v=18.0" />
     <!-- Font Awesom Icon -->
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
@@ -152,7 +152,7 @@
                 <ul class="lesson-list">
                   {% for lesson in chapter.lessons.all %}
                     {% if has_access or forloop.parentloop.first and forloop.first %}
-                      <li class="playable-lesson" data-lesson-id="{{ lesson.id }}" data-video="{{ lesson.video_url }}" style="padding: 10px; border-radius: 6px; transition: 0.3s; margin-bottom: 2px; cursor: pointer;">
+                      <li class="playable-lesson" data-lesson-id="{{ lesson.id }}" data-video="{{ lesson.video_url }}">
                         <div class="lesson-header" style="display: flex; justify-content: space-between; align-items: center;">
                           <div class="left" style="display: flex; align-items: center; gap: 8px;">
                             <i class="bx {{ lesson.icon }}" style="color: var(--blue);"></i>
@@ -165,7 +165,7 @@
                         </div>
                       </li>
                     {% else %}
-                      <li class="locked-lesson" data-title="{{ lesson.title }}" style="padding: 10px; border-radius: 6px; transition: 0.3s; margin-bottom: 2px; cursor: pointer; opacity: 0.75;">
+                      <li class="locked-lesson" data-title="{{ lesson.title }}">
                         <div class="lesson-header" style="display: flex; justify-content: space-between; align-items: center;">
                           <div class="left" style="display: flex; align-items: center; gap: 8px;">
                             <i class="bx bx-lock-alt" style="color: #ef4444;"></i>

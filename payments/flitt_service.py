@@ -1,9 +1,11 @@
 import base64
 import hashlib
+import hmac
 import json
 import logging
 import urllib.parse
 from datetime import datetime
+
 import requests
 from django.conf import settings
 from flittpayments import Api, Checkout
@@ -12,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 # Monthly subscription runs for 12 charges (= 1 year), then stops at Flitt.
 SUBSCRIPTION_MONTHLY_CHARGE_COUNT = 12
+FLITT_REQUEST_TIMEOUT_SECONDS = 5
 
 def generate_flitt_signature(params: dict, secret_key: str = None) -> str:
     """
@@ -73,7 +76,7 @@ def verify_flitt_signature(params: dict, secret_key: str = None) -> bool:
         return False
 
     expected_signature = generate_flitt_signature(params, secret_key=secret_key)
-    return received_signature.lower() == expected_signature.lower()
+    return hmac.compare_digest(received_signature.lower(), expected_signature.lower())
 
 
 class FlittPaymentClient:
@@ -105,16 +108,17 @@ class FlittPaymentClient:
                 api = Api(
                     merchant_id=self.merchant_id,
                     secret_key=self.secret_key,
-                    api_protocol='2.0'
+                    api_protocol='2.0',
+                    timeout=FLITT_REQUEST_TIMEOUT_SECONDS,
                 )
                 checkout = Checkout(api=api)
 
-                start_date = datetime.now().strftime('%Y-%m-%d')
+                # flittpayments 3.0.0 requires start_time even though Flitt's API docs allow omitting it.
                 rec_payload = recurring_data or {
+                    "start_time": datetime.now().strftime('%Y-%m-%d'),
                     "every": 1,
                     "period": "month",
                     "amount": amount_tetri,
-                    "start_time": start_date,
                     "quantity": SUBSCRIPTION_MONTHLY_CHARGE_COUNT,
                     "readonly": "y",
                     "state": "shown_readonly",
@@ -177,7 +181,8 @@ class FlittPaymentClient:
                 api = Api(
                     merchant_id=self.merchant_id,
                     secret_key=self.secret_key,
-                    api_protocol='1.0'
+                    api_protocol='1.0',
+                    timeout=FLITT_REQUEST_TIMEOUT_SECONDS,
                 )
                 checkout = Checkout(api=api)
 
@@ -220,6 +225,13 @@ class FlittPaymentClient:
                         "raw": res,
                     }
 
+        except requests.exceptions.Timeout:
+            logger.warning('Flitt checkout request timed out for order %s', order_id)
+            return {
+                'response_status': 'failure',
+                'error_message': 'Flitt did not respond in time. Please try again later.',
+                'error_code': 'TIMEOUT',
+            }
         except Exception as exc:
             logger.exception("Flitt API error for order %s: %s", order_id, exc)
             return {
@@ -239,20 +251,41 @@ class FlittPaymentClient:
         }
         data['signature'] = generate_flitt_signature(data, secret_key=self.secret_key)
         try:
-            resp = requests.post('https://pay.flitt.com/api/status/order_id', json={'request': data}, timeout=10)
+            resp = requests.post('https://pay.flitt.com/api/status/order_id', json={'request': data}, timeout=FLITT_REQUEST_TIMEOUT_SECONDS)
+            resp.raise_for_status()
             res_json = resp.json()
-            if 'response' in res_json:
+            if isinstance(res_json, dict) and isinstance(res_json.get('response'), dict):
                 res_data = res_json['response']
-                if 'data' in res_data:
+                if res_data.get('version') == '2.0':
+                    encoded = res_data.get('data')
+                    received = res_data.get('signature')
+                    if not isinstance(encoded, str) or not isinstance(received, str):
+                        logger.warning('Ignoring incomplete Flitt v2 status response for order %s', order_id)
+                        return {}
+                    expected = hashlib.sha1(f'{self.secret_key}|{encoded}'.encode('utf-8')).hexdigest()
+                    if not hmac.compare_digest(received.lower(), expected):
+                        logger.warning('Ignoring invalid Flitt v2 status signature for order %s', order_id)
+                        return {}
                     try:
-                        decoded = json.loads(base64.b64decode(res_data['data']).decode('utf-8'))
-                        order_obj = decoded.get('order', decoded)
-                        if isinstance(order_obj, dict):
-                            res_data.update(order_obj)
-                    except Exception as b64_err:
-                        logger.warning("Failed to decode base64 order data from Flitt: %s", b64_err)
-                return res_data
-            return res_json
+                        decoded = json.loads(base64.b64decode(encoded, validate=True).decode('utf-8'))
+                        status_info = decoded['order']
+                    except (ValueError, KeyError, TypeError) as decode_err:
+                        logger.warning('Failed to decode Flitt v2 status for order %s: %s', order_id, decode_err)
+                        return {}
+                    if not isinstance(status_info, dict):
+                        return {}
+                elif verify_flitt_signature(res_data, secret_key=self.secret_key):
+                    status_info = res_data
+                else:
+                    logger.warning('Ignoring unsigned or invalid Flitt status response for order %s', order_id)
+                    return {}
+                if (str(status_info.get('order_id', '')) != order_id
+                        or str(status_info.get('merchant_id', '')) != str(self.merchant_id)):
+                    logger.warning('Ignoring mismatched Flitt status response for order %s', order_id)
+                    return {}
+                return status_info
+            logger.warning('Ignoring unexpected Flitt status response for order %s', order_id)
+            return {}
         except Exception as e:
             logger.error("Failed to query Flitt order status for %s: %s", order_id, e)
             return {}
@@ -265,7 +298,8 @@ class FlittPaymentClient:
             api = Api(
                 merchant_id=self.merchant_id,
                 secret_key=self.secret_key,
-                api_protocol='2.0'
+                api_protocol='2.0',
+                timeout=FLITT_REQUEST_TIMEOUT_SECONDS,
             )
             checkout = Checkout(api=api)
             res = checkout.subscription_stop(order_id=order_id)
@@ -280,6 +314,9 @@ class FlittPaymentClient:
                 "status": getattr(res, 'status', '') or '',
                 "raw": str(res),
             }
+        except requests.exceptions.Timeout:
+            logger.warning('Flitt subscription stop timed out for order %s', order_id)
+            return {'response_status': 'failure', 'error_message': 'Flitt did not respond in time.'}
         except Exception as exc:
             logger.warning("Flitt SDK subscription_stop exception for %s: %s. Trying direct API call.", order_id, exc)
             data = {
@@ -289,7 +326,7 @@ class FlittPaymentClient:
             }
             data['signature'] = generate_flitt_signature(data, secret_key=self.secret_key)
             try:
-                resp = requests.post('https://pay.flitt.com/api/subscription', json={'request': data}, timeout=10)
+                resp = requests.post('https://pay.flitt.com/api/subscription', json={'request': data}, timeout=FLITT_REQUEST_TIMEOUT_SECONDS)
                 res_json = resp.json()
                 if 'response' in res_json:
                     return res_json['response']

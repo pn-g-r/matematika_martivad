@@ -22,6 +22,8 @@ STUDENTS_PER_PAGE = 20
 ENROLLMENT_FILTERS = (
     'all',
     'enrolled',
+    'has_course_access',
+    'active_subscriptions',
     'warm_leads',
     'free_access',
     'canceled_renewal',
@@ -89,6 +91,19 @@ def _expiring_on_date_subquery(target_date, course_id=None):
     return UserCourseAccess.objects.filter(**filters)
 
 
+def _yearly_or_active_subscription_subquery(now, course_id=None):
+    filters = {
+        'user_id': OuterRef('pk'),
+        'is_active': True,
+        'expires_at__gt': now,
+    }
+    if course_id:
+        filters['course_id'] = course_id
+    return UserCourseAccess.objects.filter(**filters).filter(
+        Q(plan_type=PlanType.YEARLY) | Q(plan_type=PlanType.MONTHLY, auto_renew=True)
+    )
+
+
 def _canceled_renewal_subquery(now, course_id=None):
     filters = {
         'user_id': OuterRef('pk'),
@@ -148,8 +163,10 @@ def _student_queryset(status='all', course_id=None, search_field='', search_q=''
 
     has_search = search_field in SEARCH_FIELDS and bool((search_q or '').strip())
     if not has_search:
-        if status == 'enrolled':
+        if status in ('enrolled', 'has_course_access'):
             qs = qs.filter(has_valid_enrollment=True)
+        elif status == 'active_subscriptions':
+            qs = qs.filter(Exists(_yearly_or_active_subscription_subquery(now, course_id=course_id)))
         elif status == 'warm_leads':
             qs = qs.filter(
                 ~Exists(_any_access_subquery(course_id=course_id))
@@ -255,6 +272,7 @@ def _list_redirect_from_post(request):
 @staff_required
 def student_list_view(request):
     status, course_id, search_field, search_q, expiring_date, expiring_date_str = _parse_list_params(request.GET)
+    filter_status = 'has_course_access' if status == 'enrolled' else status
     queryset = _student_queryset(
         status=status,
         course_id=course_id,
@@ -271,6 +289,12 @@ def student_list_view(request):
     filter_urls = {
         'all': _students_list_url(status='all', course_id=course_id, expiring_date=expiring_date_str, **search_args),
         'enrolled': _students_list_url(status='enrolled', course_id=course_id, expiring_date=expiring_date_str, **search_args),
+        'has_course_access': _students_list_url(
+            status='has_course_access', course_id=course_id, expiring_date=expiring_date_str, **search_args
+        ),
+        'active_subscriptions': _students_list_url(
+            status='active_subscriptions', course_id=course_id, expiring_date=expiring_date_str, **search_args
+        ),
         'warm_leads': _students_list_url(status='warm_leads', course_id=course_id, expiring_date=expiring_date_str, **search_args),
         'free_access': _students_list_url(status='free_access', course_id=course_id, expiring_date=expiring_date_str, **search_args),
         'canceled_renewal': _students_list_url(status='canceled_renewal', course_id=course_id, expiring_date=expiring_date_str, **search_args),
@@ -279,7 +303,8 @@ def student_list_view(request):
 
     filter_tabs = [
         {'id': 'all', 'label': 'ყველა', 'url': filter_urls['all']},
-        {'id': 'enrolled', 'label': 'ჩარიცხული', 'url': filter_urls['enrolled']},
+        {'id': 'has_course_access', 'label': '📚 კურსის წვდომა', 'url': filter_urls['has_course_access']},
+        {'id': 'active_subscriptions', 'label': 'გამოწერა ან 1 წლიანი', 'url': filter_urls['active_subscriptions']},
         {'id': 'warm_leads', 'label': '🔥 რეგ&გადაუხდელი', 'url': filter_urls['warm_leads']},
         {'id': 'free_access', 'label': '🎁 უფასო წვდომა', 'url': filter_urls['free_access']},
         {'id': 'canceled_renewal', 'label': '⚠️ გაუქმებული გამოწერა', 'url': filter_urls['canceled_renewal']},
@@ -316,7 +341,7 @@ def student_list_view(request):
             'students': page_obj.object_list,
             'grant_form': GrantCourseAccessForm(),
             'total_students': paginator.count,
-            'filter_status': status,
+            'filter_status': filter_status,
             'filter_course': course_id or '',
             'expiring_date_str': expiring_date_str,
             'date_stats': date_stats,
@@ -330,6 +355,8 @@ def student_list_view(request):
             'filter_tabs': filter_tabs,
             'url_filter_all': filter_urls['all'],
             'url_filter_enrolled': filter_urls['enrolled'],
+            'url_filter_has_course_access': filter_urls['has_course_access'],
+            'url_filter_active_subscriptions': filter_urls['active_subscriptions'],
             'url_filter_warm_leads': filter_urls['warm_leads'],
             'url_filter_free_access': filter_urls['free_access'],
             'url_filter_canceled_renewal': filter_urls['canceled_renewal'],

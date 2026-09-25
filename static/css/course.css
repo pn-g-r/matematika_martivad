@@ -254,25 +254,53 @@
 
 .accordion-item {
   border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  margin-bottom: 15px;
+  border-radius: 0;
+  margin-bottom: -1px;
   overflow: hidden;
+}
+
+.accordion-item:first-child {
+  border-top-left-radius: 6px;
+  border-top-right-radius: 6px;
+}
+
+.accordion-item:last-child {
+  border-bottom-left-radius: 6px;
+  border-bottom-right-radius: 6px;
+  margin-bottom: 0;
 }
 
 .accordion-header {
   background: #f8fafc;
-  padding: 18px 20px;
+  padding: 10px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
   cursor: pointer;
   font-weight: 600;
+  font-size: 14px;
+  line-height: 1.3;
   color: #0f172a;
   user-select: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.accordion-header:hover {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.accordion-item.active .accordion-header {
+  background: #f1f5f9;
+}
+
+.accordion-item.active .accordion-header:hover {
+  background: #e0f2fe;
+  color: #0369a1;
 }
 
 .accordion-header i {
-  /* No transition effects */
+  font-size: 18px;
 }
 
 .accordion-body {
@@ -292,40 +320,64 @@
 
 .lesson-list {
   list-style: none;
-  padding: 15px 20px;
+  padding: 0;
+  margin: 0;
 }
 
 .lesson-list li {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
+  display: block;
+  padding: 8px 14px;
+  margin: 0;
   border-bottom: 1px solid #f1f5f9;
+  border-radius: 0;
   color: #475569;
-  font-size: 15px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.lesson-list li:hover {
+  background: #f0f9ff;
 }
 
 .lesson-list li:last-child {
   border-bottom: none;
 }
 
+.lesson-list .lesson-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+}
+
 .lesson-list .left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .lesson-list i {
   color: #38bdf8;
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .lesson-list .duration {
-  background: #f1f5f9;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 13px;
+  background: transparent;
+  padding: 0;
+  margin-left: 12px;
+  border-radius: 0;
+  font-size: 12px;
   color: #64748b;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.lesson-list .locked-lesson {
+  opacity: 0.75;
 }
 
 @media (max-width: 1280px) {

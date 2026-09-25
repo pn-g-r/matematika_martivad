@@ -1,4 +1,3 @@
-from django.utils import timezone
 from .models import UserCourseAccess
 from courses.models import Course
 
@@ -10,12 +9,10 @@ def paid_user_context(request):
     paid_course = None
     paid_courses = []
     if request.user.is_authenticated and not request.user.is_staff and not request.user.is_superuser:
-        now = timezone.now()
         active_accesses = (
             UserCourseAccess.objects.filter(
                 user=request.user,
                 is_active=True,
-                expires_at__gt=now,
                 course__isnull=False,
             )
             .select_related('course')
@@ -23,7 +20,7 @@ def paid_user_context(request):
         )
         seen_course_ids = set()
         for access in active_accesses:
-            if access.course_id in seen_course_ids:
+            if not access.is_valid_now() or access.course_id in seen_course_ids:
                 continue
             seen_course_ids.add(access.course_id)
             paid_courses.append(access.course)

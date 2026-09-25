@@ -130,6 +130,130 @@ class DashboardAccessTests(TestCase):
         self.assertEqual(len(students), 1)
         self.assertEqual(students[0].pk, self.student_old.pk)
 
+    def test_filter_has_course_access_includes_paid_and_free(self):
+        order = PaymentOrder.objects.create(
+            order_id='PAID_FOR_ACCESS_FILTER',
+            user=self.student_old,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            status=OrderStatus.APPROVED,
+        )
+        UserCourseAccess.objects.create(
+            user=self.student_old,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=True,
+            last_order=order,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        UserCourseAccess.objects.create(
+            user=self.student_new,
+            course=self.course,
+            plan_type=PlanType.YEARLY,
+            is_active=True,
+            auto_renew=False,
+            last_order=None,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        self.client.force_login(self.staff)
+        res = self.client.get(reverse('dashboard:students'), {'status': 'has_course_access'})
+        self.assertEqual(res.status_code, 200)
+        students = list(res.context['students'])
+        self.assertEqual(len(students), 2)
+        student_ids = {s.pk for s in students}
+        self.assertEqual(student_ids, {self.student_old.pk, self.student_new.pk})
+
+    def test_filter_active_subscriptions_yearly_and_auto_renew_monthly(self):
+        order = PaymentOrder.objects.create(
+            order_id='ACTIVE_SUB_MONTHLY',
+            user=self.student_old,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            status=OrderStatus.APPROVED,
+        )
+        UserCourseAccess.objects.create(
+            user=self.student_old,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=True,
+            last_order=order,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        UserCourseAccess.objects.create(
+            user=self.student_new,
+            course=self.course,
+            plan_type=PlanType.YEARLY,
+            is_active=True,
+            auto_renew=False,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=365),
+        )
+        self.client.force_login(self.staff)
+        res = self.client.get(reverse('dashboard:students'), {'status': 'active_subscriptions'})
+        self.assertEqual(res.status_code, 200)
+        students = list(res.context['students'])
+        self.assertEqual(len(students), 2)
+        self.assertEqual({s.pk for s in students}, {self.student_old.pk, self.student_new.pk})
+
+    def test_filter_active_subscriptions_excludes_canceled_and_free(self):
+        UserCourseAccess.objects.create(
+            user=self.student_old,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=False,
+            last_order=None,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        order = PaymentOrder.objects.create(
+            order_id='CANCELED_SUB',
+            user=self.student_new,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            amount_gel=Decimal('50.00'),
+            amount_tetri=5000,
+            status=OrderStatus.APPROVED,
+        )
+        UserCourseAccess.objects.create(
+            user=self.student_new,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=False,
+            last_order=order,
+            starts_at=timezone.now(),
+            expires_at=timezone.now() + timedelta(days=30),
+        )
+        self.client.force_login(self.staff)
+        res = self.client.get(reverse('dashboard:students'), {'status': 'active_subscriptions'})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.context['students']), 0)
+
+    def test_filter_has_course_access_excludes_expired_and_no_access(self):
+        UserCourseAccess.objects.create(
+            user=self.student_old,
+            course=self.course,
+            plan_type=PlanType.MONTHLY,
+            is_active=True,
+            auto_renew=False,
+            starts_at=timezone.now() - timedelta(days=60),
+            expires_at=timezone.now() - timedelta(days=1),
+        )
+        self.client.force_login(self.staff)
+        res = self.client.get(reverse('dashboard:students'), {'status': 'has_course_access'})
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(len(res.context['students']), 0)
+
     def test_filter_by_course(self):
         course_b = Course.objects.create(
             title='VII კლასის მათემატიკა',

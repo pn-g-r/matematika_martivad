@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.utils import timezone
 from django.utils.html import mark_safe
 from .models import PaymentOrder, UserCourseAccess, PlanType
 from .flitt_service import is_flitt_subscription_stopped
@@ -44,6 +45,8 @@ class PaymentOrderAdmin(admin.ModelAdmin):
         'raw_response',
         'access_granted_at',
         'fulfilled_payment_id',
+        'subscription_canceled_at',
+        'subscription_parent_order_id',
         'created_at',
         'updated_at',
     )
@@ -78,7 +81,23 @@ class PaymentOrderAdmin(admin.ModelAdmin):
         for order in queryset:
             status_info = client.get_order_status(order.order_id)
             if status_info:
+                try:
+                    valid_amount = int(status_info.get('amount')) == order.amount_tetri
+                except (ValueError, TypeError):
+                    valid_amount = False
+                if not valid_amount or (status_info.get('currency') or '').upper() != order.currency.upper():
+                    self.message_user(request, f"Flitt-ის თანხა ან ვალუტა არ ემთხვევა შეკვეთას {order.order_id}.", level='warning')
+                    continue
                 remote_status = (status_info.get('order_status') or '').lower()
+                remote_parent_id = status_info.get('parent_order_id') or ''
+                if (remote_parent_id and remote_parent_id != order.order_id
+                        and order.subscription_parent_order_id
+                        and remote_parent_id != order.subscription_parent_order_id):
+                    self.message_user(request, f"Flitt-ის ძირითადი გამოწერა არ ემთხვევა შეკვეთას {order.order_id}.", level='warning')
+                    continue
+                if remote_parent_id and remote_parent_id != order.order_id:
+                    order.subscription_parent_order_id = remote_parent_id
+                parent_id = order.subscription_parent_order_id
                 rectoken = status_info.get('rectoken', '')
                 masked_card = status_info.get('masked_card', '')
                 card_type = status_info.get('card_type', '')
@@ -94,7 +113,7 @@ class PaymentOrderAdmin(admin.ModelAdmin):
                         order.flitt_payment_id = str(payment_id)
                     order.save()
                     if order.course:
-                        sub_root = order.order_id if order.is_subscription and order.plan_type == PlanType.MONTHLY else None
+                        sub_root = (parent_id or order.order_id) if order.is_subscription and order.plan_type == PlanType.MONTHLY else None
                         order.fulfill_access_if_needed(
                             rectoken=rectoken,
                             subscription_order_id=sub_root,
@@ -102,14 +121,21 @@ class PaymentOrderAdmin(admin.ModelAdmin):
                         )
                     updated_count += 1
                 elif remote_status in ('declined', 'expired', 'reversed'):
+                    previous_status = order.status
+                    if previous_status == 'approved' and remote_status in ('declined', 'expired'):
+                        continue
                     order.status = remote_status
-                    order.save(update_fields=['status', 'updated_at'])
+                    order.save(update_fields=['status', 'subscription_parent_order_id', 'updated_at'])
+                    if remote_status == 'declined' and previous_status != 'declined' and parent_id:
+                        UserCourseAccess.record_failed_renewal(
+                            user=order.user, course=order.course, root_order_id=parent_id,
+                        )
         self.message_user(request, f"სინქრონიზაცია დასრულდა. Flitt-ის მიხედვით განახლდა {updated_count} შეკვეთა.")
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
         if obj.status == 'approved' and obj.course:
-            sub_root = obj.order_id if obj.is_subscription and obj.plan_type == PlanType.MONTHLY else None
+            sub_root = (obj.subscription_parent_order_id or obj.order_id) if obj.is_subscription and obj.plan_type == PlanType.MONTHLY else None
             obj.fulfill_access_if_needed(subscription_order_id=sub_root)
 
 
@@ -150,6 +176,9 @@ class UserCourseAccessAdmin(admin.ModelAdmin):
             if sub_order_id:
                 res = client.cancel_subscription(sub_order_id)
                 if is_flitt_subscription_stopped(res):
+                    PaymentOrder.objects.filter(order_id=sub_order_id, user=access.user).update(
+                        subscription_canceled_at=timezone.now()
+                    )
                     access.auto_renew = False
                     access.save(update_fields=['auto_renew', 'updated_at'])
                     cancelled_count += 1
