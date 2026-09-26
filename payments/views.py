@@ -11,7 +11,7 @@ from django.contrib import messages
 from django.urls import reverse
 from django.utils import timezone
 from django.conf import settings
-from .models import PaymentOrder, FulfilledPayment, UserCourseAccess, PlanType, OrderStatus
+from .models import PaymentOrder, FulfilledPayment, UserCourseAccess, CheckoutReservation, PlanType, OrderStatus
 from courses.models import Course
 from .flitt_service import FlittPaymentClient, verify_flitt_signature, is_flitt_subscription_stopped
 
@@ -118,25 +118,47 @@ def checkout_init_view(request, plan_type):
         )
         return redirect('payments:pricing')
 
+    pending_order = PaymentOrder.objects.filter(
+        user=request.user,
+        course=selected_course,
+        status__in=(OrderStatus.CREATED, OrderStatus.PROCESSING),
+    ).order_by('-created_at').first()
+    pricing_url = f"{reverse('payments:pricing')}?course_id={selected_course.pk}"
+    if pending_order:
+        if pending_order.checkout_url:
+            return redirect(pending_order.checkout_url)
+        messages.info(request, "ამ კურსის გადახდა ჯერ მოწმდება. გთხოვთ, ახალი გადახდის დაწყებამდე შეკვეთის სტატუსი გადაამოწმოთ.")
+        return redirect(pricing_url)
+
     plan_info = PLANS_CONFIG[plan_type]
     prefix = f"MM_C{selected_course.id}_SUB" if plan_info['is_subscription'] else f"MM_C{selected_course.id}_YEAR"
     order_desc = f"{selected_course.title} - {plan_info['description']}"
 
-    order_id = PaymentOrder.generate_order_id(prefix=prefix)
+    with transaction.atomic():
+        reservation, reservation_created = CheckoutReservation.objects.get_or_create(
+            user=request.user, course=selected_course,
+        )
+        if not reservation_created:
+            reserved_order = reservation.order
+            if reserved_order and reserved_order.checkout_url:
+                return redirect(reserved_order.checkout_url)
+            messages.info(request, "ამ კურსის გადახდა უკვე დაწყებულია. გთხოვთ, შეკვეთის სტატუსი გადაამოწმოთ.")
+            return redirect(pricing_url)
 
-    # 1. Create initial DB order
-    order = PaymentOrder.objects.create(
-        order_id=order_id,
-        user=request.user,
-        course=selected_course,
-        plan_type=plan_type,
-        amount_gel=plan_info['price_gel'],
-        amount_tetri=plan_info['price_tetri'],
-        currency='GEL',
-        order_desc=order_desc,
-        is_subscription=plan_info['is_subscription'],
-        status=OrderStatus.CREATED,
-    )
+        order = PaymentOrder.objects.create(
+            order_id=PaymentOrder.generate_order_id(prefix=prefix),
+            user=request.user,
+            course=selected_course,
+            plan_type=plan_type,
+            amount_gel=plan_info['price_gel'],
+            amount_tetri=plan_info['price_tetri'],
+            currency='GEL',
+            order_desc=order_desc,
+            is_subscription=plan_info['is_subscription'],
+            status=OrderStatus.CREATED,
+        )
+        reservation.order = order
+        reservation.save(update_fields=['order'])
 
     # 2. Build Callback & Response URLs
     site_url = getattr(settings, 'SITE_URL', '').rstrip('/')
@@ -184,6 +206,8 @@ def checkout_init_view(request, plan_type):
         order.response_code = err_code
         order.response_description = err_msg
         order.save(update_fields=['status', 'response_code', 'response_description', 'raw_response'])
+        if order.status == OrderStatus.DECLINED:
+            CheckoutReservation.objects.filter(order=order).delete()
         messages.error(request, f"გადახდის სისტემასთან დაკავშირება ვერ მოხერხდა: {err_msg}")
         return redirect('payments:pricing')
 
@@ -358,12 +382,23 @@ def _process_verified_flitt_callback(data, order_id, parent_order_id):
     if order.status == OrderStatus.APPROVED and order_status in ('processing', 'declined', 'expired'):
         logger.info("Ignoring delayed '%s' status for already APPROVED order %s", order_status, order.order_id)
         return HttpResponse("OK", status=200)
+    if order.status == OrderStatus.REVERSED:
+        if order_status in ('processing', 'declined', 'expired', 'reversed'):
+            return HttpResponse("OK", status=200)
+        if order_status == 'approved':
+            replay_payment_id = str(data.get('payment_id') or '')
+            if not replay_payment_id or FulfilledPayment.objects.filter(
+                order=order, payment_id=replay_payment_id, reversed_at__isnull=False,
+            ).exists():
+                logger.info("Ignoring delayed approval for reversed payment on order %s", order.order_id)
+                return HttpResponse("OK", status=200)
 
     if order_status == 'approved':
         new_payment_id = str(data.get('payment_id', '') or '')
         subscription_root_id = None
         if order.plan_type == PlanType.MONTHLY and order.is_subscription:
             subscription_root_id = parent_order_id or order.subscription_parent_order_id or order.order_id
+        CheckoutReservation.objects.filter(order=order).delete()
 
         # Recover legacy/partial approved orders that have never granted access.
         # This and the fulfillment record are committed in the same callback transaction.
@@ -413,14 +448,25 @@ def _process_verified_flitt_callback(data, order_id, parent_order_id):
                 "Order %s approved! Granted %s access for course '%s' to user %s",
                 order.order_id, order.plan_type, order.course.title, order.user,
             )
-    elif order_status in ('declined', 'expired', 'reversed', 'processing'):
+    elif order_status in ('declined', 'expired', 'processing'):
         order.status = order_status
         order.save()
+        if order_status in (OrderStatus.DECLINED, OrderStatus.EXPIRED):
+            CheckoutReservation.objects.filter(order=order).delete()
         if (order_status == OrderStatus.DECLINED and prior_status != OrderStatus.DECLINED
                 and parent_order_id and order_id != parent_order_id):
             UserCourseAccess.record_failed_renewal(
                 user=order.user, course=order.course, root_order_id=parent_order_id,
             )
+    elif order_status == 'reversed':
+        payment_id = str(data.get('payment_id') or '')
+        if not UserCourseAccess.apply_full_payment_reversal(
+            payment_order=order, payment_id=payment_id,
+        ):
+            logger.warning("Could not match full reversal to a fulfilled payment for order %s", order.order_id)
+        order.status = OrderStatus.REVERSED
+        order.save()
+        CheckoutReservation.objects.filter(order=order).delete()
     else:
         logger.warning("Received unhandled Flitt order_status %r for order %s", order_status, order.order_id)
         order.save()

@@ -205,9 +205,26 @@ class PaymentOrder(models.Model):
         return True
 
 
+class CheckoutReservation(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    course = models.ForeignKey('courses.Course', on_delete=models.CASCADE)
+    order = models.OneToOneField(
+        PaymentOrder, on_delete=models.CASCADE, null=True, blank=True,
+        related_name='checkout_reservation',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=('user', 'course'), name='unique_active_checkout_per_course'),
+        ]
+
+
 class FulfilledPayment(models.Model):
     order = models.ForeignKey(PaymentOrder, on_delete=models.CASCADE, related_name='fulfilled_payments')
     payment_id = models.CharField(max_length=64)
+    reversed_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True, blank=True)
 
     class Meta:
         unique_together = ('order', 'payment_id')
@@ -331,6 +348,46 @@ class UserCourseAccess(models.Model):
             access.save(update_fields=['renewal_failed_at', 'updated_at'])
             return True
 
+    @classmethod
+    def apply_full_payment_reversal(cls, *, payment_order, payment_id):
+        """Remove the reversed payment's period once, preserving other paid periods."""
+        if not payment_order.course or not payment_id:
+            return False
+
+        with transaction.atomic():
+            fulfillment = FulfilledPayment.objects.select_for_update().filter(
+                order=payment_order, payment_id=str(payment_id), reversed_at__isnull=True,
+            ).first()
+            if not fulfillment:
+                return False
+
+            fulfillment.reversed_at = timezone.now()
+            fulfillment.save(update_fields=['reversed_at'])
+            access = cls.objects.select_for_update().filter(
+                user=payment_order.user, course=payment_order.course,
+            ).first()
+            if not access or not fulfillment.created_at or fulfillment.created_at < access.starts_at:
+                return True
+
+            if payment_order.plan_type == PlanType.MONTHLY:
+                anchor = access.starts_at
+                months_elapsed = (
+                    (access.expires_at.year - anchor.year) * 12
+                    + access.expires_at.month - anchor.month
+                )
+                if (access.plan_type == PlanType.MONTHLY and months_elapsed > 0
+                        and access.expires_at == add_calendar_months(anchor, months_elapsed)):
+                    access.expires_at = add_calendar_months(anchor, months_elapsed - 1)
+                else:
+                    access.expires_at = add_calendar_months(access.expires_at, -1)
+            else:
+                access.expires_at -= timedelta(days=365)
+
+            if access.expires_at <= timezone.now():
+                access.is_active = False
+            access.save(update_fields=['expires_at', 'is_active', 'updated_at'])
+            return True
+
     def get_subscription_order_id(self):
         """Root Flitt subscription order ID — required for stop/cancel after renewals."""
         if self.subscription_order_id:
@@ -364,60 +421,69 @@ class UserCourseAccess(models.Model):
     ):
         now = timezone.now()
         monthly = plan_type == PlanType.MONTHLY
-        root_canceled = bool(subscription_order_id and PaymentOrder.objects.filter(
-            order_id=subscription_order_id, subscription_canceled_at__isnull=False
-        ).exists())
         initial_expiry = add_calendar_months(now) if monthly else now + timedelta(days=365)
+        defaults = {
+            'plan_type': plan_type,
+            'is_active': True,
+            'auto_renew': monthly,
+            'starts_at': now,
+            'expires_at': initial_expiry,
+            'last_order': payment_order,
+            'subscription_order_id': subscription_order_id or "",
+            'rectoken': rectoken or "",
+        }
 
-        access, created = cls.objects.get_or_create(
-            user=user,
-            course=course,
-            defaults={
-                'plan_type': plan_type,
-                'is_active': True,
-                'auto_renew': monthly and not root_canceled,
-                'starts_at': now,
-                'expires_at': initial_expiry,
-                'last_order': payment_order,
-                'subscription_order_id': subscription_order_id or "",
-                'rectoken': rectoken or "",
-            }
-        )
+        with transaction.atomic():
+            access = cls.objects.select_for_update().filter(user=user, course=course).first()
+            created = access is None
+            if created:
+                access, created = cls.objects.get_or_create(
+                    user=user, course=course, defaults=defaults,
+                )
+                if not created:
+                    access = cls.objects.select_for_update().get(pk=access.pk)
 
-        if not created:
-            if access.is_valid_now():
-                if monthly:
-                    anchor = access.starts_at
-                    months_elapsed = (access.expires_at.year - anchor.year) * 12 + access.expires_at.month - anchor.month
-                    if (access.plan_type == PlanType.MONTHLY and months_elapsed >= 1
-                            and access.expires_at == add_calendar_months(anchor, months_elapsed)):
-                        access.expires_at = add_calendar_months(anchor, months_elapsed + 1)
-                    else:
-                        access.expires_at = add_calendar_months(access.expires_at)
-                else:
-                    access.expires_at += timedelta(days=365)
+            root_canceled = bool(subscription_order_id and PaymentOrder.objects.filter(
+                order_id=subscription_order_id, subscription_canceled_at__isnull=False
+            ).exists())
+            if created:
+                if monthly and root_canceled:
+                    access.auto_renew = False
+                    access.save(update_fields=['auto_renew', 'updated_at'])
             else:
-                access.starts_at = now
-                access.expires_at = initial_expiry
+                if access.is_valid_now():
+                    if monthly:
+                        anchor = access.starts_at
+                        months_elapsed = (access.expires_at.year - anchor.year) * 12 + access.expires_at.month - anchor.month
+                        if (access.plan_type == PlanType.MONTHLY and months_elapsed >= 1
+                                and access.expires_at == add_calendar_months(anchor, months_elapsed)):
+                            access.expires_at = add_calendar_months(anchor, months_elapsed + 1)
+                        else:
+                            access.expires_at = add_calendar_months(access.expires_at)
+                    else:
+                        access.expires_at += timedelta(days=365)
+                else:
+                    access.starts_at = now
+                    access.expires_at = initial_expiry
 
-            access.plan_type = plan_type
-            access.is_active = True
-            access.renewal_failed_at = None
-            if monthly:
-                access.auto_renew = not root_canceled
-            if payment_order:
-                access.last_order = payment_order
-            if subscription_order_id and (
-                not access.subscription_order_id
-                or PaymentOrder.objects.filter(
-                    order_id=access.subscription_order_id,
-                    subscription_canceled_at__isnull=False,
-                ).exists()
-            ):
-                access.subscription_order_id = subscription_order_id
-            if rectoken:
-                access.rectoken = rectoken
-            access.save()
+                access.plan_type = plan_type
+                access.is_active = True
+                access.renewal_failed_at = None
+                if monthly:
+                    access.auto_renew = not root_canceled
+                if payment_order:
+                    access.last_order = payment_order
+                if subscription_order_id and (
+                    not access.subscription_order_id
+                    or PaymentOrder.objects.filter(
+                        order_id=access.subscription_order_id,
+                        subscription_canceled_at__isnull=False,
+                    ).exists()
+                ):
+                    access.subscription_order_id = subscription_order_id
+                if rectoken:
+                    access.rectoken = rectoken
+                access.save()
 
         return access
 

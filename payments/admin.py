@@ -1,7 +1,14 @@
 from django.contrib import admin
 from django.utils import timezone
 from django.utils.html import mark_safe
-from .models import PaymentOrder, UserCourseAccess, PlanType
+from django.db import transaction
+from .models import (
+    CheckoutReservation,
+    OrderStatus,
+    PaymentOrder,
+    PlanType,
+    UserCourseAccess,
+)
 from .flitt_service import is_flitt_subscription_stopped
 
 @admin.register(PaymentOrder)
@@ -104,32 +111,47 @@ class PaymentOrderAdmin(admin.ModelAdmin):
                 payment_id = status_info.get('payment_id', '')
 
                 if remote_status == 'approved':
-                    order.status = 'approved'
+                    order.status = OrderStatus.APPROVED
                     if masked_card:
                         order.masked_card = masked_card
                     if card_type:
                         order.card_type = card_type
                     if payment_id:
                         order.flitt_payment_id = str(payment_id)
-                    order.save()
-                    if order.course:
-                        sub_root = (parent_id or order.order_id) if order.is_subscription and order.plan_type == PlanType.MONTHLY else None
-                        order.fulfill_access_if_needed(
-                            rectoken=rectoken,
-                            subscription_order_id=sub_root,
-                            payment_id=str(payment_id) if payment_id else order.flitt_payment_id,
-                        )
+                    with transaction.atomic():
+                        order.save()
+                        if order.course:
+                            sub_root = (parent_id or order.order_id) if order.is_subscription and order.plan_type == PlanType.MONTHLY else None
+                            order.fulfill_access_if_needed(
+                                rectoken=rectoken,
+                                subscription_order_id=sub_root,
+                                payment_id=str(payment_id) if payment_id else order.flitt_payment_id,
+                            )
+                        CheckoutReservation.objects.filter(order=order).delete()
                     updated_count += 1
                 elif remote_status in ('declined', 'expired', 'reversed'):
                     previous_status = order.status
-                    if previous_status == 'approved' and remote_status in ('declined', 'expired'):
+                    if previous_status == OrderStatus.APPROVED and remote_status in ('declined', 'expired'):
                         continue
-                    order.status = remote_status
-                    order.save(update_fields=['status', 'subscription_parent_order_id', 'updated_at'])
-                    if remote_status == 'declined' and previous_status != 'declined' and parent_id:
-                        UserCourseAccess.record_failed_renewal(
-                            user=order.user, course=order.course, root_order_id=parent_id,
-                        )
+                    with transaction.atomic():
+                        if remote_status == 'reversed':
+                            if not UserCourseAccess.apply_full_payment_reversal(
+                                payment_order=order, payment_id=payment_id,
+                            ):
+                                self.message_user(
+                                    request,
+                                    f"Flitt-ის დაბრუნებული გადახდა ვერ დაუკავშირდა დამუშავებულ გადახდას {order.order_id}.",
+                                    level='warning',
+                                )
+                        order.status = remote_status
+                        order.save(update_fields=['status', 'subscription_parent_order_id', 'updated_at'])
+                        CheckoutReservation.objects.filter(order=order).delete()
+                        if remote_status == 'declined' and previous_status != 'declined' and parent_id:
+                            UserCourseAccess.record_failed_renewal(
+                                user=order.user, course=order.course, root_order_id=parent_id,
+                            )
+                    if remote_status == 'reversed':
+                        updated_count += 1
         self.message_user(request, f"სინქრონიზაცია დასრულდა. Flitt-ის მიხედვით განახლდა {updated_count} შეკვეთა.")
 
     def save_model(self, request, obj, form, change):

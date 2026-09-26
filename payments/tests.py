@@ -14,7 +14,15 @@ from django.contrib import admin
 from django.conf import settings
 from django.utils import timezone
 from datetime import datetime, timedelta, timezone as datetime_timezone
-from .models import PaymentOrder, UserCourseAccess, PlanType, OrderStatus, add_calendar_months
+from .models import (
+    CheckoutReservation,
+    FulfilledPayment,
+    PaymentOrder,
+    UserCourseAccess,
+    PlanType,
+    OrderStatus,
+    add_calendar_months,
+)
 from courses.models import Course, Chapter, Lesson
 from .flitt_service import generate_flitt_signature, verify_flitt_signature, FlittPaymentClient
 
@@ -272,6 +280,25 @@ class PaymentsWorkflowTests(TestCase):
         self.assertEqual(order.response_code, 'TIMEOUT')
         self.assertFalse(order.checkout_url)
         self.assertFalse(UserCourseAccess.objects.filter(user=self.user, course=self.course).exists())
+        self.assertTrue(CheckoutReservation.objects.filter(user=self.user, course=self.course).exists())
+
+    @patch.object(FlittPaymentClient, 'create_checkout_session')
+    def test_repeated_checkout_reuses_existing_session(self, mock_flitt):
+        mock_flitt.return_value = {
+            'response_status': 'success',
+            'checkout_url': 'https://pay.flitt.com/checkout/one-session',
+            'payment_token': 'one-session',
+        }
+        self.client.force_login(self.user)
+        checkout_url = reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'})
+        first = self.client.post(checkout_url, data={'course_id': self.course.pk})
+        second = self.client.post(checkout_url, data={'course_id': self.course.pk})
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.assertEqual(first.url, second.url)
+        self.assertEqual(mock_flitt.call_count, 1)
+        self.assertEqual(PaymentOrder.objects.filter(user=self.user, course=self.course).count(), 1)
+        self.assertEqual(CheckoutReservation.objects.filter(user=self.user, course=self.course).count(), 1)
 
     def test_checkout_init_requires_login(self):
         response = self.client.post(reverse('payments:checkout_init', kwargs={'plan_type': 'monthly'}), data={'course_id': self.course.id})
@@ -422,6 +449,7 @@ class PaymentsWorkflowTests(TestCase):
 
         order.refresh_from_db()
         self.assertEqual(order.status, OrderStatus.APPROVED)
+        self.assertFalse(CheckoutReservation.objects.filter(order=order).exists())
         self.assertEqual(order.flitt_payment_id, '888777666')
         self.assertEqual(order.masked_card, '444455XXXXXX1111')
 
@@ -432,6 +460,64 @@ class PaymentsWorkflowTests(TestCase):
         self.assertEqual(access.rectoken, 'REC_TOKEN_XYZ_999')
         self.assertEqual(access.subscription_order_id, order.order_id)
         self.assertTrue(access.expires_at > timezone.now() + timedelta(days=28))
+
+    def test_callback_reversal_revokes_period_once_and_ignores_replayed_approval(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_REVERSAL_CALLBACK', user=self.user, course=self.course,
+            plan_type=PlanType.MONTHLY, amount_gel=Decimal('50.00'), amount_tetri=5000,
+            currency='GEL', is_subscription=True, status=OrderStatus.PROCESSING,
+        )
+        CheckoutReservation.objects.create(user=self.user, course=self.course, order=order)
+
+        def send_status(status):
+            payload = {
+                'order_id': order.order_id,
+                'merchant_id': 1549901,
+                'amount': '5000',
+                'currency': 'GEL',
+                'order_status': status,
+                'payment_id': 'reversal-payment-1',
+            }
+            payload['signature'] = generate_flitt_signature(payload, secret_key='test')
+            return self.client.post(
+                reverse('payments:flitt_callback'), data=payload, content_type='application/json',
+            )
+
+        self.assertEqual(send_status('approved').status_code, 200)
+        access = UserCourseAccess.objects.get(user=self.user, course=self.course)
+        original_expiry = access.expires_at
+        self.assertFalse(CheckoutReservation.objects.filter(order=order).exists())
+
+        self.assertEqual(send_status('reversed').status_code, 200)
+        access.refresh_from_db()
+        reversed_expiry = access.expires_at
+        self.assertLess(reversed_expiry, original_expiry)
+        self.assertFalse(access.is_valid_now())
+
+        self.assertEqual(send_status('reversed').status_code, 200)
+        self.assertEqual(send_status('approved').status_code, 200)
+        access.refresh_from_db()
+        self.assertEqual(access.expires_at, reversed_expiry)
+        fulfillment = FulfilledPayment.objects.get(order=order, payment_id='reversal-payment-1')
+        self.assertIsNotNone(fulfillment.reversed_at)
+
+    def test_declined_callback_releases_checkout_reservation(self):
+        order = PaymentOrder.objects.create(
+            order_id='MM_DECLINED_RESERVATION', user=self.user, course=self.course,
+            plan_type=PlanType.YEARLY, amount_gel=Decimal('400.00'), amount_tetri=40000,
+            currency='GEL', status=OrderStatus.PROCESSING,
+        )
+        CheckoutReservation.objects.create(user=self.user, course=self.course, order=order)
+        payload = {
+            'order_id': order.order_id, 'merchant_id': 1549901,
+            'amount': '40000', 'currency': 'GEL', 'order_status': 'declined',
+        }
+        payload['signature'] = generate_flitt_signature(payload, secret_key='test')
+        response = self.client.post(
+            reverse('payments:flitt_callback'), data=payload, content_type='application/json',
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(CheckoutReservation.objects.filter(order=order).exists())
 
     def test_callback_approved_grants_yearly_access(self):
         order = PaymentOrder.objects.create(
@@ -870,6 +956,36 @@ class PaymentsWorkflowTests(TestCase):
         self.assertEqual(order.status, OrderStatus.APPROVED)
         self.assertEqual(access.expires_at, first_expiry)
         self.assertEqual(order.fulfilled_payments.count(), 1)
+
+    @patch('payments.flitt_service.requests.post')
+    def test_admin_sync_reverses_fulfilled_payment_once(self, mock_post):
+        order = PaymentOrder.objects.create(
+            order_id='MM_ADMIN_REVERSAL', user=self.user, course=self.course,
+            plan_type=PlanType.MONTHLY, amount_gel=Decimal('50.00'), amount_tetri=5000,
+            currency='GEL', is_subscription=True, status=OrderStatus.APPROVED,
+        )
+        order.fulfill_access_if_needed(payment_id='admin-reversal-payment')
+        access = UserCourseAccess.objects.get(user=self.user, course=self.course)
+        granted_expiry = access.expires_at
+        payload = {
+            'order_id': order.order_id, 'merchant_id': 1549901,
+            'order_status': 'reversed', 'amount': '5000', 'currency': 'GEL',
+            'payment_id': 'admin-reversal-payment',
+        }
+        payload['signature'] = generate_flitt_signature(payload, secret_key='test')
+        mock_post.return_value.json.return_value = {'response': payload}
+        action = admin.site._registry[PaymentOrder]
+        with patch.object(action, 'message_user'):
+            action.sync_with_flitt_action(None, PaymentOrder.objects.filter(pk=order.pk))
+            access.refresh_from_db()
+            reversed_expiry = access.expires_at
+            action.sync_with_flitt_action(None, PaymentOrder.objects.filter(pk=order.pk))
+        order.refresh_from_db()
+        access.refresh_from_db()
+        self.assertEqual(order.status, OrderStatus.REVERSED)
+        self.assertLess(reversed_expiry, granted_expiry)
+        self.assertEqual(access.expires_at, reversed_expiry)
+        self.assertTrue(FulfilledPayment.objects.get(order=order).reversed_at)
 
     @patch('payments.flitt_service.requests.post')
     def test_admin_sync_supports_signed_v2_status(self, mock_post):
